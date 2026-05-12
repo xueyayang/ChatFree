@@ -1,6 +1,5 @@
-// content.js - Injected into chat.deepseek.com
-// Strategy: manipulate the DeepSeek page's UI to send messages.
-// Intercept SSE stream to capture raw markdown before DeepSeek renders it to HTML.
+// content_chatgpt.js - Injected into chatgpt.com
+// Strategy: manipulate ChatGPT's own UI to send messages and capture responses via SSE.
 
 let observer = null;
 let lastProcessedContent = '';
@@ -31,8 +30,8 @@ function installSSEInterceptor() {
     const url = typeof resource === 'string' ? resource : (resource.url || '');
     const response = await originalFetch.call(self, resource, options);
 
-    // Only intercept if we're expecting a response and no stream is active
-    if (url.includes('/chat/completion') && response.ok && response.body && !sseActive && activeRequestId > 0) {
+    if ((url.includes('backend-api/conversation') || url.includes('chat.openai.com')) &&
+        response.ok && response.body && !sseActive && activeRequestId > 0) {
       const capturedId = activeRequestId;
       const clone = response.clone();
       processSSEStream(clone, capturedId).catch(() => {});
@@ -45,7 +44,6 @@ function installSSEInterceptor() {
 async function processSSEStream(response, requestId) {
   sseActive = true;
 
-  // Stop DOM observer fallback
   if (observer) {
     observer.disconnect();
     observer = null;
@@ -61,14 +59,12 @@ async function processSSEStream(response, requestId) {
   const decoder = new TextDecoder();
   let buffer = '';
   let hasContent = false;
-  let inResponse = false;
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
 
-      // Stop forwarding if this request was superseded
       if (requestId !== activeRequestId) break;
 
       buffer += decoder.decode(value, { stream: true });
@@ -84,13 +80,18 @@ async function processSSEStream(response, requestId) {
           if (!jsonStr || jsonStr === '[DONE]') continue;
 
           const data = JSON.parse(jsonStr);
-          const result = extractSSEText(data, inResponse);
-          if (result.text && requestId === activeRequestId) {
-            hasContent = true;
-            chrome.runtime.sendMessage({ type: 'chunk', content: result.text }).catch(() => {});
-          }
-          if (result.enteredResponse) {
-            inResponse = true;
+
+          // ChatGPT SSE format: message with content parts
+          if (data.message && data.message.content) {
+            const content = data.message.content;
+            if (content.parts && Array.isArray(content.parts)) {
+              for (const part of content.parts) {
+                if (typeof part === 'string' && part.length > 0 && requestId === activeRequestId) {
+                  hasContent = true;
+                  chrome.runtime.sendMessage({ type: 'chunk', content: part }).catch(() => {});
+                }
+              }
+            }
           }
         } catch {}
       }
@@ -101,54 +102,24 @@ async function processSSEStream(response, requestId) {
     }
     sseActive = false;
 
-    // Only send done if this request is still the active one
     if (requestId === activeRequestId && hasContent) {
       chrome.runtime.sendMessage({ type: 'done' }).catch(() => {});
     }
   }
 }
 
-function extractSSEText(data, inResponse) {
-  // Fragment append: {"p":"response/fragments","o":"APPEND","v":[{...}]}
-  if (data.o === 'APPEND' && Array.isArray(data.v)) {
-    const responseText = data.v
-      .filter(f => f.type === 'RESPONSE')
-      .map(f => f.content || '')
-      .join('');
-
-    return {
-      text: responseText,
-      enteredResponse: data.v.some(f => f.type === 'RESPONSE')
-    };
-  }
-
-  // Content append: {"p":"response/fragments/-1/content","o":"APPEND","v":"text"}
-  if (data.o === 'APPEND' && typeof data.v === 'string' && data.p && data.p.endsWith('/content')) {
-    return { text: inResponse ? data.v : '', enteredResponse: false };
-  }
-
-  // Direct value: {"v":"text"} — only include after RESPONSE fragment has started
-  if (data.v && typeof data.v === 'string') {
-    return { text: inResponse ? data.v : '', enteredResponse: false };
-  }
-
-  return { text: '', enteredResponse: false };
-}
-
-// ---- DOM-based approach (for sending messages) ----
+// ---- DOM manipulation for sending ----
 async function doChatViaDOM(message) {
   // ---- Reset state for the new request ----
   activeRequestId++;
   const thisRequestId = activeRequestId;
 
-  // Cancel any in-progress SSE reader
   if (currentReader) {
     currentReader.cancel('superseded').catch(() => {});
     currentReader = null;
   }
   sseActive = false;
 
-  // Disconnect DOM observer
   if (observer) {
     observer.disconnect();
     observer = null;
@@ -160,30 +131,29 @@ async function doChatViaDOM(message) {
   lastProcessedContent = '';
   streamingTarget = null;
 
-  // Ensure we're on the right page
-  if (!location.pathname.startsWith('/a/chat/')) {
-    console.log('[ChatFree] navigating to chat page...');
-    window.history.pushState({}, '', '/');
-    window.dispatchEvent(new PopStateEvent('popstate'));
-    await sleep(2000);
-  }
-
   // Find the input element
   const input = findInput();
   if (!input) {
-    throw new Error('Could not find DeepSeek chat input on the page');
+    throw new Error('Could not find ChatGPT input on the page');
   }
-  console.log('[ChatFree] found input:', input.tagName, input.className);
+  console.log('[ChatFree:ChatGPT] found input:', input.tagName, input.className);
 
-  // Focus and type the message via native value setter
   input.focus();
+  await sleep(300);
 
-  if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
-    input.value = '';
+  if (input.getAttribute('contenteditable') === 'true') {
+    input.textContent = '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.textContent = message;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  } else if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
     const nativeInputValueSetter =
       Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set ||
       Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
 
     if (nativeInputValueSetter) {
       nativeInputValueSetter.call(input, message);
@@ -192,34 +162,29 @@ async function doChatViaDOM(message) {
     }
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
-  } else if (input.getAttribute('contenteditable') === 'true') {
-    input.textContent = message;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   await sleep(300);
 
-  // Start DOM observer as fallback (will be disabled if SSE interceptor picks up the stream)
+  // Start DOM observer as fallback
   startObservingResponse(thisRequestId);
 
-  // Send the message
   const sent = await trySend(input);
   if (!sent) {
-    throw new Error('Failed to send message - no send method worked');
+    throw new Error('Failed to send ChatGPT message');
   }
-  console.log('[ChatFree] message sent, requestId:', thisRequestId);
+  console.log('[ChatFree:ChatGPT] message sent, requestId:', thisRequestId);
 }
 
 function findInput() {
   const selectors = [
-    'textarea[placeholder*="消息" i]',
-    'textarea[placeholder*="问题" i]',
-    'textarea[placeholder*="message" i]',
-    'textarea[placeholder*="question" i]',
-    '#chat-input',
-    '[data-testid="chat-input"]',
+    '#prompt-textarea',
+    'div[contenteditable="true"][role="textbox"]',
+    'textarea[placeholder*="Send" i]',
+    'textarea[placeholder*="Message" i]',
+    'textarea[placeholder*="ChatGPT" i]',
+    '[data-id="root"] div[contenteditable="true"]',
     '[role="textbox"]',
-    '[contenteditable="true"][role="textbox"]',
     'textarea'
   ];
 
@@ -230,6 +195,15 @@ function findInput() {
     } catch {}
   }
 
+  // Fallback: find any contenteditable div near the bottom of the page
+  const editables = document.querySelectorAll('[contenteditable="true"]');
+  for (const el of editables) {
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight * 0.5 && el.offsetParent !== null) {
+      return el;
+    }
+  }
+
   return null;
 }
 
@@ -237,40 +211,42 @@ async function trySend(input) {
   await sleep(200);
 
   // Method 1: Press Enter
-  console.log('[ChatFree] trying Enter key to send...');
+  console.log('[ChatFree:ChatGPT] trying Enter key to send...');
   input.focus();
   input.dispatchEvent(new KeyboardEvent('keydown', {
     key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
     bubbles: true, cancelable: true, composed: true
   }));
-  input.dispatchEvent(new KeyboardEvent('keypress', {
-    key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-    bubbles: true, cancelable: true, composed: true
-  }));
   await sleep(500);
 
-  if (input.value === '' || input.disabled) {
-    console.log('[ChatFree] Enter key worked - input cleared');
+  const inputEmpty = input.getAttribute('contenteditable') === 'true'
+    ? (input.textContent || '').trim() === ''
+    : (input.value || '') === '';
+  if (inputEmpty || input.disabled) {
+    console.log('[ChatFree:ChatGPT] Enter key worked');
     return true;
   }
 
-  // Method 2: Search for send button in ancestors
-  console.log('[ChatFree] Enter didn\'t work, searching for button...');
+  // Method 2: Search for send button
+  console.log('[ChatFree:ChatGPT] searching for send button...');
   let el = input;
   for (let i = 0; i < 6; i++) {
     el = el.parentElement;
     if (!el) break;
-    const btns = el.querySelectorAll('button, [role="button"], div[class*="send"], span[class*="send"]');
+    const btns = el.querySelectorAll('button');
     for (const btn of btns) {
       if (btn.offsetParent !== null) {
         const rect = btn.getBoundingClientRect();
         const inputRect = input.getBoundingClientRect();
         if (Math.abs(rect.bottom - inputRect.bottom) < 100) {
-          console.log('[ChatFree] clicking send button:', btn.tagName, btn.className.slice(0, 60));
+          console.log('[ChatFree:ChatGPT] clicking button:', btn.tagName, btn.className?.slice(0, 60));
           btn.click();
           await sleep(500);
-          if (input.value === '' || input.disabled) {
-            console.log('[ChatFree] button click worked');
+          const nowEmpty = input.getAttribute('contenteditable') === 'true'
+            ? (input.textContent || '').trim() === ''
+            : (input.value || '') === '';
+          if (nowEmpty || input.disabled) {
+            console.log('[ChatFree:ChatGPT] button click worked');
             return true;
           }
         }
@@ -278,36 +254,27 @@ async function trySend(input) {
     }
   }
 
-  // Method 3: Scan all buttons with SVG icons in bottom half of page
+  // Method 3: Scan all buttons with SVG in bottom half
   const allBtns = document.querySelectorAll('button');
-  console.log('[ChatFree] scanning', allBtns.length, 'buttons on page...');
+  console.log('[ChatFree:ChatGPT] scanning', allBtns.length, 'buttons...');
   for (const btn of allBtns) {
     if (btn.querySelector('svg') && btn.offsetParent !== null) {
       const rect = btn.getBoundingClientRect();
       if (rect.bottom > window.innerHeight * 0.6) {
-        console.log('[ChatFree] trying button:', {
-          class: btn.className?.slice(0, 60),
-          ariaLabel: btn.getAttribute('aria-label'),
-          title: btn.title,
-          rect: [rect.x, rect.y, rect.width, rect.height]
-        });
         btn.click();
         await sleep(500);
-        if (input.value === '' || input.disabled) return true;
+        const nowEmpty = input.getAttribute('contenteditable') === 'true'
+          ? (input.textContent || '').trim() === ''
+          : (input.value || '') === '';
+        if (nowEmpty || input.disabled) return true;
       }
     }
   }
 
-  // Method 4: Ctrl+Enter / Cmd+Enter
-  input.dispatchEvent(new KeyboardEvent('keydown', {
-    key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-    ctrlKey: true, bubbles: true, cancelable: true, composed: true
-  }));
-
   return false;
 }
 
-// ---- DOM observer (fallback when SSE interception doesn't pick up) ----
+// ---- DOM observer (fallback) ----
 function startObservingResponse(requestId) {
   lastProcessedContent = '';
   streamingTarget = null;
@@ -316,21 +283,25 @@ function startObservingResponse(requestId) {
   if (observerTimeout) clearTimeout(observerTimeout);
 
   observer = new MutationObserver(() => {
-    // Don't interfere with SSE processing; only match the current request
     if (sseActive || requestId !== activeRequestId) return;
 
-    const messages = document.querySelectorAll('[class*="message"]');
+    // ChatGPT marks messages with data-message-author-role
+    const messages = document.querySelectorAll('[data-message-author-role="assistant"]');
     let latestAssistant = null;
     for (const msg of messages) {
-      const text = msg.textContent || '';
-      if (text.length > 0 &&
-          (msg.getAttribute('data-role') === 'assistant' ||
-           msg.className.includes('assistant') ||
-           msg.className.includes('bot') ||
-           msg.className.includes('ai') ||
-           msg.className.includes('response') ||
-           !msg.className.includes('user') && text.length > 10)) {
+      if (msg.textContent && msg.textContent.length > 0) {
         latestAssistant = msg;
+      }
+    }
+
+    // Fallback: look for common patterns
+    if (!latestAssistant) {
+      const allMessages = document.querySelectorAll('[class*="message"], [class*="markdown"], [class*="prose"]');
+      for (const msg of allMessages) {
+        const text = msg.textContent || '';
+        if (text.length > 10 && !text.includes(inputText())) {
+          latestAssistant = msg;
+        }
       }
     }
 
@@ -349,22 +320,12 @@ function startObservingResponse(requestId) {
         lastProcessedContent = newText;
       }
     }
-
-    const stopBtn = document.querySelector('[data-testid="stop-button"], button[aria-label*="stop" i], button[aria-label*="停止" i]');
-    const hasLoading = document.querySelector('[class*="loading"], [class*="streaming"], [class*="generating"]');
-
-    if (!stopBtn && !hasLoading && streamingTarget && lastProcessedContent.length > 50) {
-      console.log('[ChatFree] DOM: streaming appears complete');
-      observer.disconnect();
-      observer = null;
-      chrome.runtime.sendMessage({ type: 'done' }).catch(() => {});
-    }
   });
 
   const chatContainer =
-    document.querySelector('[class*="chat"] [class*="message"]')?.closest('[class*="chat"]') ||
     document.querySelector('[class*="conversation"]') ||
     document.querySelector('main') ||
+    document.querySelector('[role="main"]') ||
     document.body;
 
   observer.observe(chatContainer, {
@@ -373,7 +334,6 @@ function startObservingResponse(requestId) {
     characterData: true
   });
 
-  // Fallback timeout after 60 seconds
   observerTimeout = setTimeout(() => {
     if (observer) {
       observer.disconnect();
@@ -388,9 +348,19 @@ function startObservingResponse(requestId) {
   }, 60000);
 }
 
+function inputText() {
+  const input = findInput();
+  if (input) {
+    return input.getAttribute('contenteditable') === 'true'
+      ? (input.textContent || '')
+      : (input.value || '');
+  }
+  return '';
+}
+
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// ---- Install SSE interceptor on load ----
+// ---- Install interceptor on load ----
 installSSEInterceptor();

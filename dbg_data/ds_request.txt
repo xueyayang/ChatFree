@@ -1,0 +1,10 @@
+{
+    "chat_session_id": "47311411-4d0a-48f2-afb2-c2ac4137c363",
+    "parent_message_id": null,
+    "model_type": "default",
+    "prompt": "你好",
+    "ref_file_ids": [],
+    "thinking_enabled": true,
+    "search_enabled": true,
+    "preempt": false
+}

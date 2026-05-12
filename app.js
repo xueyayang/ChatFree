@@ -1,4 +1,8 @@
-// popup.js - ChatFree side panel UI logic
+// app.js - ChatFree standalone page UI logic
+
+// ---- Backend config ----
+const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT' };
+const BACKEND_URLS = { deepseek: 'https://chat.deepseek.com', chatgpt: 'https://chatgpt.com' };
 
 // ---- Configure marked ----
 const renderer = new marked.Renderer();
@@ -10,7 +14,7 @@ renderer.code = function({ text, lang }) {
 marked.setOptions({ renderer, breaks: true, gfm: true });
 
 const state = {
-  backend: 'deepseek',   // 'deepseek' | 'chatgpt' (ChatGPT for later milestone)
+  backend: 'deepseek',
   loggedIn: false,
   streaming: false,
   currentAiBubble: null,
@@ -25,9 +29,11 @@ const sendBtn = $('#send-btn');
 const statusDot = $('#status-dot');
 const statusText = $('#status-text');
 const typingEl = $('#typing-indicator');
+const backendSelect = $('#backend-select');
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', async () => {
+  backendSelect.addEventListener('change', onBackendChange);
   checkLoginStatus();
   renderEmptyState();
 });
@@ -41,15 +47,29 @@ inputEl.addEventListener('keydown', (e) => {
 
 sendBtn.addEventListener('click', sendMessage);
 
+// ---- Backend switching ----
+async function onBackendChange() {
+  state.backend = backendSelect.value;
+  // Clear messages when switching backend
+  state.loggedIn = false;
+  state.streaming = false;
+  state.currentAiBubble = null;
+  state.currentAiRawText = '';
+  inputEl.disabled = true;
+  sendBtn.disabled = true;
+  statusDot.className = '';
+  statusText.textContent = 'Checking...';
+  checkLoginStatus();
+}
+
 // ---- Background message listener ----
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'chunk') {
-    appendChunk(msg.content);
+    if (state.streaming) appendChunk(msg.content);
   } else if (msg.type === 'done') {
-    finishStreaming();
+    if (state.streaming) finishStreaming();
   } else if (msg.type === 'error') {
-    finishStreaming();
-    appendError(msg.error);
+    if (state.streaming) { finishStreaming(); appendError(msg.error); }
   }
 });
 
@@ -65,13 +85,14 @@ async function checkLoginStatus() {
 
 function updateLoginStatus(loggedIn) {
   state.loggedIn = loggedIn;
+  const label = BACKEND_LABELS[state.backend];
   statusDot.className = loggedIn ? 'connected' : 'disconnected';
-  statusText.textContent = loggedIn ? 'DeepSeek' : 'Disconnected';
+  statusText.textContent = loggedIn ? label : 'Disconnected';
   inputEl.disabled = !loggedIn;
   sendBtn.disabled = !loggedIn;
 
   if (!loggedIn) {
-    inputEl.placeholder = 'Log in to DeepSeek first...';
+    inputEl.placeholder = `Log in to ${label} first...`;
     renderLoginHint();
   } else {
     inputEl.placeholder = 'Type a message...';
@@ -83,20 +104,23 @@ function updateLoginStatus(loggedIn) {
 
 // ---- Render ----
 function renderEmptyState() {
+  const label = BACKEND_LABELS[state.backend];
   messagesEl.innerHTML = `
     <div class="empty-state">
       <div class="icon">&#128172;</div>
-      <p>Start a conversation with DeepSeek</p>
+      <p>Start a conversation with ${label}</p>
     </div>
   `;
 }
 
 function renderLoginHint() {
+  const label = BACKEND_LABELS[state.backend];
+  const url = BACKEND_URLS[state.backend];
   messagesEl.innerHTML = `
     <div class="login-hint">
       <div class="warn-icon">&#9888;</div>
-      <p>Not logged into DeepSeek.</p>
-      <p><a href="https://chat.deepseek.com" target="_blank">Open DeepSeek</a> and sign in, then reopen this panel.</p>
+      <p>Not logged into ${label}.</p>
+      <p><a href="${url}" target="_blank">Open ${label}</a> and sign in, then reopen this page.</p>
     </div>
   `;
 }

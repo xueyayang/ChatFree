@@ -1,0 +1,377 @@
+复制选项：从部复制为 fetch(Node.js)
+
+
+fetch("https://hif-dliq.deepseek.com/query", {
+  "headers": {
+    "accept": "*/*",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "x-app-version": "2.0.0",
+    "x-client-locale": "zh_CN",
+    "x-client-platform": "web",
+    "x-client-timezone-offset": "28800",
+    "x-client-version": "2.0.0",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": null,
+  "method": "GET"
+}); ;
+fetch("https://hif-dliq.deepseek.com/query", {
+  "headers": {
+    "accept": "*/*",
+    "sec-fetch-mode": "cors"
+  },
+  "body": null,
+  "method": "OPTIONS"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "content-type": "application/json; charset=UTF-8",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": "[{\"events\":[{\"event\":\"hifRequestError\",\"params\":\"{\\\"event_level\\\":\\\"error\\\",\\\"event_message\\\":\\\"HIF请求失败: https://hif-dliq.deepseek.com/query\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"dsp__error\\\":\\\"{\\\\\\\"name\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\",\\\\\\\"message\\\\\\\":\\\\\\\"Network error\\\\\\\",\\\\\\\"stack\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\\n    at o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:35982)\\\\\\\\n    at onNetworkError (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:31771)\\\\\\\\n    at XMLHttpRequest.<anonymous> (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:38362)\\\\\\\\n    at c (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:29221)\\\\\\\\n    at async o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:34999)\\\\\\\\n    at async oj (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:1021472)\\\\\\\\n    at async nl.poll (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:862691)\\\\\\\\n    at async nl.start (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:863964)\\\\\\\",\\\\\\\"error\\\\\\\":null,\\\\\\\"logId\\\\\\\":\\\\\\\"[unset]\\\\\\\",\\\\\\\"httpStatus\\\\\\\":\\\\\\\"-1\\\\\\\"}\\\",\\\"ds_url\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_errorType\\\":\\\"network\\\",\\\"ds_statusCode\\\":\\\"null\\\",\\\"ds_bizCode\\\":\\\"null\\\",\\\"ds_responseCode\\\":\\\"null\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847111}\",\"local_time_ms\":1778510546322,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"__httpResponse\",\"params\":\"{\\\"event_level\\\":\\\"error\\\",\\\"event_message\\\":\\\"httpResponse GET https://hif-dliq.deepseek.com/query, 81ms\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"dsp__error\\\":\\\"{\\\\\\\"name\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\",\\\\\\\"message\\\\\\\":\\\\\\\"Network error\\\\\\\",\\\\\\\"stack\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\\n    at o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:35982)\\\\\\\\n    at onNetworkError (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:31771)\\\\\\\\n    at XMLHttpRequest.<anonymous> (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:38362)\\\\\\\\n    at c (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:29221)\\\\\\\\n    at async o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:34999)\\\\\\\\n    at async oj (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:1021472)\\\\\\\\n    at async nl.poll (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:862691)\\\\\\\\n    at async nl.start (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:863964)\\\\\\\",\\\\\\\"error\\\\\\\":null,\\\\\\\"logId\\\\\\\":\\\\\\\"[unset]\\\\\\\",\\\\\\\"httpStatus\\\\\\\":\\\\\\\"-1\\\\\\\"}\\\",\\\"ds_url\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_method\\\":\\\"GET\\\",\\\"ds_duration\\\":81,\\\"ds_metricDuration\\\":81,\\\"ds_path\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_status\\\":\\\"-1\\\",\\\"ds_logId\\\":\\\"[unset]\\\",\\\"ds_errorType\\\":\\\"client\\\",\\\"ds_code\\\":\\\"none\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847110}\",\"local_time_ms\":1778510546322,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"}],\"user\":{\"user_unique_id\":\"a55600ff-fbf9-4f3c-96f4-06e291b6891b\",\"web_id\":\"7470085611177899021\"},\"header\":{\"app_id\":20006317,\"os_name\":\"windows\",\"os_version\":\"10\",\"device_model\":\"Windows NT 10.0\",\"language\":\"zh-CN\",\"platform\":\"web\",\"sdk_version\":\"5.2.11_tob\",\"sdk_lib\":\"js\",\"timezone\":8,\"tz_offset\":-28800,\"resolution\":\"1536x864\",\"browser\":\"Microsoft Edge\",\"browser_version\":\"148.0.0.0\",\"referrer\":\"\",\"referrer_host\":\"\",\"width\":1536,\"height\":864,\"screen_width\":1536,\"screen_height\":864,\"custom\":\"{\\\"commit_id\\\":\\\"861862c6\\\",\\\"commit_datetime\\\":\\\"2026/05/09 15:18:34\\\",\\\"origin_referrer\\\":\\\"\\\",\\\"origin_referrer_host\\\":\\\"\\\"}\"},\"local_time\":1778510546,\"verbose\":1}]",
+  "method": "POST"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": null,
+  "method": "OPTIONS"
+}); ;
+fetch("https://hif-dliq.deepseek.com/query", {
+  "headers": {
+    "accept": "*/*",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "x-app-version": "2.0.0",
+    "x-client-locale": "zh_CN",
+    "x-client-platform": "web",
+    "x-client-timezone-offset": "28800",
+    "x-client-version": "2.0.0",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": null,
+  "method": "GET"
+}); ;
+fetch("https://hif-dliq.deepseek.com/query", {
+  "headers": {
+    "accept": "*/*",
+    "sec-fetch-mode": "cors"
+  },
+  "body": null,
+  "method": "OPTIONS"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "content-type": "application/json; charset=UTF-8",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": "[{\"events\":[{\"event\":\"hifRequestError\",\"params\":\"{\\\"event_level\\\":\\\"error\\\",\\\"event_message\\\":\\\"HIF请求失败: https://hif-dliq.deepseek.com/query\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"dsp__error\\\":\\\"{\\\\\\\"name\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\",\\\\\\\"message\\\\\\\":\\\\\\\"Network error\\\\\\\",\\\\\\\"stack\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\\n    at o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:35982)\\\\\\\\n    at onNetworkError (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:31771)\\\\\\\\n    at XMLHttpRequest.<anonymous> (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:38362)\\\\\\\\n    at c (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:29221)\\\\\\\\n    at async o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:34999)\\\\\\\\n    at async oj (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:1021472)\\\\\\\\n    at async nl.poll (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:862691)\\\\\\\\n    at async nl.start (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:863964)\\\\\\\",\\\\\\\"error\\\\\\\":null,\\\\\\\"logId\\\\\\\":\\\\\\\"[unset]\\\\\\\",\\\\\\\"httpStatus\\\\\\\":\\\\\\\"-1\\\\\\\"}\\\",\\\"ds_url\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_errorType\\\":\\\"network\\\",\\\"ds_statusCode\\\":\\\"null\\\",\\\"ds_bizCode\\\":\\\"null\\\",\\\"ds_responseCode\\\":\\\"null\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847113}\",\"local_time_ms\":1778510554426,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"__httpResponse\",\"params\":\"{\\\"event_level\\\":\\\"error\\\",\\\"event_message\\\":\\\"httpResponse GET https://hif-dliq.deepseek.com/query, 97ms\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"dsp__error\\\":\\\"{\\\\\\\"name\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\",\\\\\\\"message\\\\\\\":\\\\\\\"Network error\\\\\\\",\\\\\\\"stack\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\\n    at o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:35982)\\\\\\\\n    at onNetworkError (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:31771)\\\\\\\\n    at XMLHttpRequest.<anonymous> (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:38362)\\\\\\\\n    at c (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:29221)\\\\\\\\n    at async o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:34999)\\\\\\\\n    at async oj (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:1021472)\\\\\\\\n    at async nl.poll (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:862691)\\\\\\\\n    at async nl.start (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:863964)\\\\\\\",\\\\\\\"error\\\\\\\":null,\\\\\\\"logId\\\\\\\":\\\\\\\"[unset]\\\\\\\",\\\\\\\"httpStatus\\\\\\\":\\\\\\\"-1\\\\\\\"}\\\",\\\"ds_url\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_method\\\":\\\"GET\\\",\\\"ds_duration\\\":97,\\\"ds_metricDuration\\\":97,\\\"ds_path\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_status\\\":\\\"-1\\\",\\\"ds_logId\\\":\\\"[unset]\\\",\\\"ds_errorType\\\":\\\"client\\\",\\\"ds_code\\\":\\\"none\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847112}\",\"local_time_ms\":1778510554425,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"}],\"user\":{\"user_unique_id\":\"a55600ff-fbf9-4f3c-96f4-06e291b6891b\",\"web_id\":\"7470085611177899021\"},\"header\":{\"app_id\":20006317,\"os_name\":\"windows\",\"os_version\":\"10\",\"device_model\":\"Windows NT 10.0\",\"language\":\"zh-CN\",\"platform\":\"web\",\"sdk_version\":\"5.2.11_tob\",\"sdk_lib\":\"js\",\"timezone\":8,\"tz_offset\":-28800,\"resolution\":\"1536x864\",\"browser\":\"Microsoft Edge\",\"browser_version\":\"148.0.0.0\",\"referrer\":\"\",\"referrer_host\":\"\",\"width\":1536,\"height\":864,\"screen_width\":1536,\"screen_height\":864,\"custom\":\"{\\\"commit_id\\\":\\\"861862c6\\\",\\\"commit_datetime\\\":\\\"2026/05/09 15:18:34\\\",\\\"origin_referrer\\\":\\\"\\\",\\\"origin_referrer_host\\\":\\\"\\\"}\"},\"local_time\":1778510554,\"verbose\":1}]",
+  "method": "POST"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": null,
+  "method": "OPTIONS"
+}); ;
+fetch("https://hif-dliq.deepseek.com/query", {
+  "headers": {
+    "accept": "*/*",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "x-app-version": "2.0.0",
+    "x-client-locale": "zh_CN",
+    "x-client-platform": "web",
+    "x-client-timezone-offset": "28800",
+    "x-client-version": "2.0.0",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": null,
+  "method": "GET"
+}); ;
+fetch("https://hif-dliq.deepseek.com/query", {
+  "headers": {
+    "accept": "*/*",
+    "sec-fetch-mode": "cors"
+  },
+  "body": null,
+  "method": "OPTIONS"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "content-type": "application/json; charset=UTF-8",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": "[{\"events\":[{\"event\":\"hifRequestError\",\"params\":\"{\\\"event_level\\\":\\\"error\\\",\\\"event_message\\\":\\\"HIF请求失败: https://hif-dliq.deepseek.com/query\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"dsp__error\\\":\\\"{\\\\\\\"name\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\",\\\\\\\"message\\\\\\\":\\\\\\\"Network error\\\\\\\",\\\\\\\"stack\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\\n    at o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:35982)\\\\\\\\n    at onNetworkError (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:31771)\\\\\\\\n    at XMLHttpRequest.<anonymous> (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:38362)\\\\\\\\n    at c (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:29221)\\\\\\\\n    at async o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:34999)\\\\\\\\n    at async oj (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:1021472)\\\\\\\\n    at async nl.poll (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:862691)\\\\\\\\n    at async nl.start (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:863964)\\\\\\\",\\\\\\\"error\\\\\\\":null,\\\\\\\"logId\\\\\\\":\\\\\\\"[unset]\\\\\\\",\\\\\\\"httpStatus\\\\\\\":\\\\\\\"-1\\\\\\\"}\\\",\\\"ds_url\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_errorType\\\":\\\"network\\\",\\\"ds_statusCode\\\":\\\"null\\\",\\\"ds_bizCode\\\":\\\"null\\\",\\\"ds_responseCode\\\":\\\"null\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847115}\",\"local_time_ms\":1778510570504,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"__httpResponse\",\"params\":\"{\\\"event_level\\\":\\\"error\\\",\\\"event_message\\\":\\\"httpResponse GET https://hif-dliq.deepseek.com/query, 72ms\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"dsp__error\\\":\\\"{\\\\\\\"name\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\",\\\\\\\"message\\\\\\\":\\\\\\\"Network error\\\\\\\",\\\\\\\"stack\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\\n    at o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:35982)\\\\\\\\n    at onNetworkError (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:31771)\\\\\\\\n    at XMLHttpRequest.<anonymous> (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:38362)\\\\\\\\n    at c (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:29221)\\\\\\\\n    at async o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:34999)\\\\\\\\n    at async oj (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:1021472)\\\\\\\\n    at async nl.poll (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:862691)\\\\\\\\n    at async nl.start (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:863964)\\\\\\\",\\\\\\\"error\\\\\\\":null,\\\\\\\"logId\\\\\\\":\\\\\\\"[unset]\\\\\\\",\\\\\\\"httpStatus\\\\\\\":\\\\\\\"-1\\\\\\\"}\\\",\\\"ds_url\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_method\\\":\\\"GET\\\",\\\"ds_duration\\\":72,\\\"ds_metricDuration\\\":72,\\\"ds_path\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_status\\\":\\\"-1\\\",\\\"ds_logId\\\":\\\"[unset]\\\",\\\"ds_errorType\\\":\\\"client\\\",\\\"ds_code\\\":\\\"none\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847114}\",\"local_time_ms\":1778510570503,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"}],\"user\":{\"user_unique_id\":\"a55600ff-fbf9-4f3c-96f4-06e291b6891b\",\"web_id\":\"7470085611177899021\"},\"header\":{\"app_id\":20006317,\"os_name\":\"windows\",\"os_version\":\"10\",\"device_model\":\"Windows NT 10.0\",\"language\":\"zh-CN\",\"platform\":\"web\",\"sdk_version\":\"5.2.11_tob\",\"sdk_lib\":\"js\",\"timezone\":8,\"tz_offset\":-28800,\"resolution\":\"1536x864\",\"browser\":\"Microsoft Edge\",\"browser_version\":\"148.0.0.0\",\"referrer\":\"\",\"referrer_host\":\"\",\"width\":1536,\"height\":864,\"screen_width\":1536,\"screen_height\":864,\"custom\":\"{\\\"commit_id\\\":\\\"861862c6\\\",\\\"commit_datetime\\\":\\\"2026/05/09 15:18:34\\\",\\\"origin_referrer\\\":\\\"\\\",\\\"origin_referrer_host\\\":\\\"\\\"}\"},\"local_time\":1778510570,\"verbose\":1}]",
+  "method": "POST"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": null,
+  "method": "OPTIONS"
+}); ;
+fetch("https://chat.deepseek.com/api/v0/chat/completion", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "authorization": "Bearer DR58fkNdPPsVwRZu5VH9ybN4+CO6H7Ivqbn/69gUYzI8WD+P3z7bhECFsQ+Kc4e/",
+    "content-type": "application/json",
+    "priority": "u=1, i",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-origin",
+    "x-app-version": "2.0.0",
+    "x-client-locale": "zh_CN",
+    "x-client-platform": "web",
+    "x-client-timezone-offset": "28800",
+    "x-client-version": "2.0.0",
+    "x-ds-pow-response": "eyJhbGdvcml0aG0iOiJEZWVwU2Vla0hhc2hWMSIsImNoYWxsZW5nZSI6IjE5OWE2MTQ0ZjAzMTFiZjE3NjMyNWJjNTdkYTFjNjQ5ZDdhMGJkNDdiOTdjMmJhOGYxOTUwM2IwNTRhNjBlMTIiLCJzYWx0IjoiZWIxNmQ0ODUwMjZjZmU3ZjdkYWUiLCJhbnN3ZXIiOjg0MTM5LCJzaWduYXR1cmUiOiIyMWRkODA5MjcwNzAxNGNiMmRlM2E0NDgyMzY1ZjcxMGY0ZDQyMzE3MTgwNGU4M2QxZTQxMDE3YzE5MTY1OTM3IiwidGFyZ2V0X3BhdGgiOiIvYXBpL3YwL2NoYXQvY29tcGxldGlvbiJ9",
+    "x-hif-leim": "XQtakWCNpfEN8nqyEYy9rp1wRZIBcL+ge6BKJPzedALHltgs8cFwIdI=.lMAZLphAIfjZV+dd",
+    "cookie": ".thumbcache_6b2e5483f9d858d7c661c5e276b6a6ae=Sbk0D/QS+22g3CYy+V8LTV4HDKppkOwwaEJoXef4pi+FUHg+7nYwSTxzWdHgzC/83OgmvEzz0qvjoPnEv/o0Jg%3D%3D; HWWAFSESTIME=1778507700933; HWWAFSESID=802691e34000a0f1359f; ds_session_id=8e0e5141ca5a488dbf2324ce5dbcb6a4",
+    "Referer": "https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831"
+  },
+  "body": "{\"chat_session_id\":\"1b98671f-c1f7-40d2-b008-dcbcb12bc831\",\"parent_message_id\":null,\"model_type\":\"default\",\"prompt\":\"开始时，url没有chat-id. 第一次输入后，才有\",\"ref_file_ids\":[],\"thinking_enabled\":true,\"search_enabled\":true,\"preempt\":false}",
+  "method": "POST"
+}); ;
+fetch("https://chat.deepseek.com/api/v0/chat_session/create", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "authorization": "Bearer DR58fkNdPPsVwRZu5VH9ybN4+CO6H7Ivqbn/69gUYzI8WD+P3z7bhECFsQ+Kc4e/",
+    "content-type": "application/json",
+    "priority": "u=1, i",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-origin",
+    "x-app-version": "2.0.0",
+    "x-client-locale": "zh_CN",
+    "x-client-platform": "web",
+    "x-client-timezone-offset": "28800",
+    "x-client-version": "2.0.0",
+    "cookie": ".thumbcache_6b2e5483f9d858d7c661c5e276b6a6ae=Sbk0D/QS+22g3CYy+V8LTV4HDKppkOwwaEJoXef4pi+FUHg+7nYwSTxzWdHgzC/83OgmvEzz0qvjoPnEv/o0Jg%3D%3D; HWWAFSESTIME=1778507700933; HWWAFSESID=802691e34000a0f1359f; ds_session_id=8e0e5141ca5a488dbf2324ce5dbcb6a4",
+    "Referer": "https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831"
+  },
+  "body": "{}",
+  "method": "POST"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "content-type": "application/json; charset=UTF-8",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": "[{\"events\":[{\"event\":\"preCreateSession\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"开始预创建 session\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847126}\",\"local_time_ms\":1778510577563,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"chatCompletionApi\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"chatCompletionApi 被调用\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_scene\\\":\\\"completion\\\",\\\"ds_chatSessionId\\\":\\\"1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"ds_modelType\\\":\\\"default\\\",\\\"ds_withFile\\\":\\\"false\\\",\\\"ds_fileExtensions\\\":\\\"[]\\\",\\\"ds_thinkingEnabled\\\":\\\"true\\\",\\\"ds_messageId\\\":\\\"\\\",\\\"ds_challengeResponse\\\":\\\"true\\\",\\\"ds_searchEnabled\\\":\\\"true\\\",\\\"ds_promptLength\\\":27,\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847125}\",\"local_time_ms\":1778510577548,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"retrievePowAnswer\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"获取工作量证明: completion_like\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_expireInfo\\\":\\\"valid\\\",\\\"ds_expireAt\\\":1778510839030,\\\"ds_scene\\\":\\\"completion_like\\\",\\\"ds_answer\\\":84139,\\\"ds_expireAfter\\\":300000,\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847124}\",\"local_time_ms\":1778510577544,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"powCleared\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"工作量证明清除: completion_like\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_scene\\\":\\\"completion_like\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847123}\",\"local_time_ms\":1778510577544,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"__tti\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831 TTI 上报：17ms\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_type\\\":\\\"warmStart\\\",\\\"ds_referer\\\":\\\"\\\",\\\"ds_metricDuration\\\":17,\\\"ds_metricVisitIndex\\\":0,\\\"ds_metricDurationSinceMounted\\\":0,\\\"ds_hasError\\\":\\\"false\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847122}\",\"local_time_ms\":1778510577539,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"__pageVisit\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"访问页面 [/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831] [0]：17ms\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_pathname\\\":\\\"/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"ds_metricVisitIndex\\\":0,\\\"ds_metricDuration\\\":17,\\\"ds_referrer\\\":\\\"none\\\",\\\"ds_appTheme\\\":\\\"system\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847121}\",\"local_time_ms\":1778510577539,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"routeChange\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"路由改变 => /a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_to\\\":\\\"/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"ds_redirect\\\":\\\"false\\\",\\\"ds_redirected\\\":\\\"false\\\",\\\"ds_redirectReason\\\":\\\"\\\",\\\"ds_redirectTo\\\":\\\"/\\\",\\\"ds_hasToken\\\":\\\"true\\\",\\\"ds_hasUserInfo\\\":\\\"true\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847120}\",\"local_time_ms\":1778510577522,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"createSessionAndStartCompletion\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"创建会话并开始补全\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_agentId\\\":\\\"chat\\\",\\\"ds_newSessionId\\\":\\\"1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"ds_oldSessionId\\\":\\\"null\\\",\\\"ds_isCreateNewChat\\\":\\\"false\\\",\\\"ds_thinkingEnabled\\\":\\\"true\\\",\\\"ds_searchEnabled\\\":\\\"true\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847119}\",\"local_time_ms\":1778510577518,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"createSessionFromPreCreate\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"使用预创建的 session\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_agentId\\\":\\\"chat\\\",\\\"ds_sessionId\\\":\\\"1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847118}\",\"local_time_ms\":1778510577516,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"createSession\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"开始创建对话\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_agentId\\\":\\\"chat\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847117}\",\"local_time_ms\":1778510577515,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"send_button_click\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"发送按钮点击\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_chat_session_id\\\":\\\"\\\",\\\"ds_model_type\\\":\\\"default\\\",\\\"ds_is_send_button_new_chat\\\":1,\\\"ds_prompt_length\\\":27,\\\"ds_is_think_enable\\\":1,\\\"ds_is_search_enable\\\":1,\\\"ds_is_edit_mode\\\":0,\\\"ds_file_count\\\":0,\\\"ds_file_extensions\\\":\\\"[]\\\",\\\"ds_file_sources\\\":\\\"[]\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847116}\",\"local_time_ms\":1778510577514,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"}],\"user\":{\"user_unique_id\":\"a55600ff-fbf9-4f3c-96f4-06e291b6891b\",\"web_id\":\"7470085611177899021\"},\"header\":{\"app_id\":20006317,\"os_name\":\"windows\",\"os_version\":\"10\",\"device_model\":\"Windows NT 10.0\",\"language\":\"zh-CN\",\"platform\":\"web\",\"sdk_version\":\"5.2.11_tob\",\"sdk_lib\":\"js\",\"timezone\":8,\"tz_offset\":-28800,\"resolution\":\"1536x864\",\"browser\":\"Microsoft Edge\",\"browser_version\":\"148.0.0.0\",\"referrer\":\"\",\"referrer_host\":\"\",\"width\":1536,\"height\":864,\"screen_width\":1536,\"screen_height\":864,\"custom\":\"{\\\"commit_id\\\":\\\"861862c6\\\",\\\"commit_datetime\\\":\\\"2026/05/09 15:18:34\\\",\\\"origin_referrer\\\":\\\"\\\",\\\"origin_referrer_host\\\":\\\"\\\"}\"},\"local_time\":1778510577,\"verbose\":1}]",
+  "method": "POST"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": null,
+  "method": "OPTIONS"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "content-type": "application/json; charset=UTF-8",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": "[{\"events\":[{\"event\":\"preCreateSessionSuccess\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"预创建 session 成功\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_sessionId\\\":\\\"2fd30a7c-069a-4f1b-a53b-4b22324db213\\\",\\\"ds_ttlSeconds\\\":259200,\\\"ds_expiresAt\\\":1778769777652,\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847129}\",\"local_time_ms\":1778510577652,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"SSENetReady\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"SSE ready事件\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_model_type\\\":\\\"default\\\",\\\"ds_chat_session_id\\\":\\\"1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"ds_chat_message_id\\\":1,\\\"ds_parent_message_id\\\":\\\"null\\\",\\\"ds_full_chat_message_id\\\":\\\"1b98671f-c1f7-40d2-b008-dcbcb12bc831:1\\\",\\\"ds_full_parent_message_id\\\":\\\"1b98671f-c1f7-40d2-b008-dcbcb12bc831:null\\\",\\\"ds_chat_message_role\\\":\\\"user\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847128}\",\"local_time_ms\":1778510577622,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"SSEConnected\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"SSE建立连接\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_duration\\\":71,\\\"ds_logId\\\":\\\"99df2edd46cd8904d4170e564e54444f\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847127}\",\"local_time_ms\":1778510577620,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"}],\"user\":{\"user_unique_id\":\"a55600ff-fbf9-4f3c-96f4-06e291b6891b\",\"web_id\":\"7470085611177899021\"},\"header\":{\"app_id\":20006317,\"os_name\":\"windows\",\"os_version\":\"10\",\"device_model\":\"Windows NT 10.0\",\"language\":\"zh-CN\",\"platform\":\"web\",\"sdk_version\":\"5.2.11_tob\",\"sdk_lib\":\"js\",\"timezone\":8,\"tz_offset\":-28800,\"resolution\":\"1536x864\",\"browser\":\"Microsoft Edge\",\"browser_version\":\"148.0.0.0\",\"referrer\":\"\",\"referrer_host\":\"\",\"width\":1536,\"height\":864,\"screen_width\":1536,\"screen_height\":864,\"custom\":\"{\\\"commit_id\\\":\\\"861862c6\\\",\\\"commit_datetime\\\":\\\"2026/05/09 15:18:34\\\",\\\"origin_referrer\\\":\\\"\\\",\\\"origin_referrer_host\\\":\\\"\\\"}\"},\"local_time\":1778510577,\"verbose\":1}]",
+  "method": "POST"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": null,
+  "method": "OPTIONS"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "content-type": "application/json; charset=UTF-8",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": "[{\"events\":[{\"event\":\"newSessionSentCompletion\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"创建session后第一条消息发送成功\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_sessionId\\\":\\\"1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847131}\",\"local_time_ms\":1778510578000,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"SSENetUpdateSession\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"更新session信息\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_updatedAt\\\":1778510578015.1438,\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847130}\",\"local_time_ms\":1778510577996,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"}],\"user\":{\"user_unique_id\":\"a55600ff-fbf9-4f3c-96f4-06e291b6891b\",\"web_id\":\"7470085611177899021\"},\"header\":{\"app_id\":20006317,\"os_name\":\"windows\",\"os_version\":\"10\",\"device_model\":\"Windows NT 10.0\",\"language\":\"zh-CN\",\"platform\":\"web\",\"sdk_version\":\"5.2.11_tob\",\"sdk_lib\":\"js\",\"timezone\":8,\"tz_offset\":-28800,\"resolution\":\"1536x864\",\"browser\":\"Microsoft Edge\",\"browser_version\":\"148.0.0.0\",\"referrer\":\"\",\"referrer_host\":\"\",\"width\":1536,\"height\":864,\"screen_width\":1536,\"screen_height\":864,\"custom\":\"{\\\"commit_id\\\":\\\"861862c6\\\",\\\"commit_datetime\\\":\\\"2026/05/09 15:18:34\\\",\\\"origin_referrer\\\":\\\"\\\",\\\"origin_referrer_host\\\":\\\"\\\"}\"},\"local_time\":1778510578,\"verbose\":1}]",
+  "method": "POST"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "content-type": "application/json; charset=UTF-8",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": "[{\"events\":[{\"event\":\"SSENetStreamDispose\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"SSE请求终止\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_isHeaderReceived\\\":\\\"true\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847136}\",\"local_time_ms\":1778510587351,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"clientStreamNetworkMonitor\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"流式请求信息\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_streamErrorStage\\\":\\\"null\\\",\\\"ds_streamScenario\\\":\\\"completion\\\",\\\"ds_logId\\\":\\\"99df2edd46cd8904d4170e564e54444f\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847135}\",\"local_time_ms\":1778510587350,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"SSENetClose\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"SSE close事件\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847134}\",\"local_time_ms\":1778510587348,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"SSENetTitle\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"SSE title事件\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_title\\\":\\\"聊天URL中chat-id的生成逻辑\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847133}\",\"local_time_ms\":1778510587348,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"SSENetUpdateSession\",\"params\":\"{\\\"event_level\\\":\\\"info\\\",\\\"event_message\\\":\\\"更新session信息\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"ds_updatedAt\\\":1778510587369.9697,\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847132}\",\"local_time_ms\":1778510587339,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"}],\"user\":{\"user_unique_id\":\"a55600ff-fbf9-4f3c-96f4-06e291b6891b\",\"web_id\":\"7470085611177899021\"},\"header\":{\"app_id\":20006317,\"os_name\":\"windows\",\"os_version\":\"10\",\"device_model\":\"Windows NT 10.0\",\"language\":\"zh-CN\",\"platform\":\"web\",\"sdk_version\":\"5.2.11_tob\",\"sdk_lib\":\"js\",\"timezone\":8,\"tz_offset\":-28800,\"resolution\":\"1536x864\",\"browser\":\"Microsoft Edge\",\"browser_version\":\"148.0.0.0\",\"referrer\":\"\",\"referrer_host\":\"\",\"width\":1536,\"height\":864,\"screen_width\":1536,\"screen_height\":864,\"custom\":\"{\\\"commit_id\\\":\\\"861862c6\\\",\\\"commit_datetime\\\":\\\"2026/05/09 15:18:34\\\",\\\"origin_referrer\\\":\\\"\\\",\\\"origin_referrer_host\\\":\\\"\\\"}\"},\"local_time\":1778510587,\"verbose\":1}]",
+  "method": "POST"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": null,
+  "method": "OPTIONS"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "content-type": "application/json; charset=UTF-8",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": "[{\"events\":[{\"event\":\"predefine_page_alive\",\"params\":\"{\\\"url_path\\\":\\\"/\\\",\\\"title\\\":\\\"DeepSeek\\\",\\\"url\\\":\\\"https://chat.deepseek.com/\\\",\\\"duration\\\":60000,\\\"is_support_visibility_change\\\":1,\\\"startTime\\\":1778510539659,\\\"hidden\\\":\\\"visible\\\",\\\"leave\\\":false,\\\"event_index\\\":1778510847137}\",\"local_time_ms\":1778510599663,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"}],\"user\":{\"user_unique_id\":\"a55600ff-fbf9-4f3c-96f4-06e291b6891b\",\"web_id\":\"7470085611177899021\"},\"header\":{\"app_id\":20006317,\"os_name\":\"windows\",\"os_version\":\"10\",\"device_model\":\"Windows NT 10.0\",\"language\":\"zh-CN\",\"platform\":\"web\",\"sdk_version\":\"5.2.11_tob\",\"sdk_lib\":\"js\",\"timezone\":8,\"tz_offset\":-28800,\"resolution\":\"1536x864\",\"browser\":\"Microsoft Edge\",\"browser_version\":\"148.0.0.0\",\"referrer\":\"\",\"referrer_host\":\"\",\"width\":1536,\"height\":864,\"screen_width\":1536,\"screen_height\":864,\"custom\":\"{\\\"commit_id\\\":\\\"861862c6\\\",\\\"commit_datetime\\\":\\\"2026/05/09 15:18:34\\\",\\\"origin_referrer\\\":\\\"\\\",\\\"origin_referrer_host\\\":\\\"\\\"}\"},\"local_time\":1778510599,\"verbose\":1}]",
+  "method": "POST"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": null,
+  "method": "OPTIONS"
+}); ;
+fetch("https://hif-dliq.deepseek.com/query", {
+  "headers": {
+    "accept": "*/*",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "x-app-version": "2.0.0",
+    "x-client-locale": "zh_CN",
+    "x-client-platform": "web",
+    "x-client-timezone-offset": "28800",
+    "x-client-version": "2.0.0",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": null,
+  "method": "GET"
+}); ;
+fetch("https://hif-dliq.deepseek.com/query", {
+  "headers": {
+    "accept": "*/*",
+    "sec-fetch-mode": "cors"
+  },
+  "body": null,
+  "method": "OPTIONS"
+}); ;
+fetch("https://gator.volces.com/list", {
+  "headers": {
+    "accept": "*/*",
+    "accept-language": "zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6,zh-TW;q=0.5",
+    "content-type": "application/json; charset=UTF-8",
+    "sec-ch-ua": "\"Chromium\";v=\"148\", \"Microsoft Edge\";v=\"148\", \"Not/A)Brand\";v=\"99\"",
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": "\"Windows\"",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "cross-site",
+    "Referer": "https://chat.deepseek.com/"
+  },
+  "body": "[{\"events\":[{\"event\":\"hifRequestError\",\"params\":\"{\\\"event_level\\\":\\\"error\\\",\\\"event_message\\\":\\\"HIF请求失败: https://hif-dliq.deepseek.com/query\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"dsp__error\\\":\\\"{\\\\\\\"name\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\",\\\\\\\"message\\\\\\\":\\\\\\\"Network error\\\\\\\",\\\\\\\"stack\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\\n    at o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:35982)\\\\\\\\n    at onNetworkError (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:31771)\\\\\\\\n    at XMLHttpRequest.<anonymous> (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:38362)\\\\\\\\n    at c (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:29221)\\\\\\\\n    at async o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:34999)\\\\\\\\n    at async oj (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:1021472)\\\\\\\\n    at async nl.poll (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:862691)\\\\\\\\n    at async nl.start (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:863964)\\\\\\\",\\\\\\\"error\\\\\\\":null,\\\\\\\"logId\\\\\\\":\\\\\\\"[unset]\\\\\\\",\\\\\\\"httpStatus\\\\\\\":\\\\\\\"-1\\\\\\\"}\\\",\\\"ds_url\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_errorType\\\":\\\"network\\\",\\\"ds_statusCode\\\":\\\"null\\\",\\\"ds_bizCode\\\":\\\"null\\\",\\\"ds_responseCode\\\":\\\"null\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847139}\",\"local_time_ms\":1778510602579,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"},{\"event\":\"__httpResponse\",\"params\":\"{\\\"event_level\\\":\\\"error\\\",\\\"event_message\\\":\\\"httpResponse GET https://hif-dliq.deepseek.com/query, 66ms\\\",\\\"dsp__appVersion\\\":\\\"2.0.0\\\",\\\"dsp__commitId\\\":\\\"861862c6\\\",\\\"dsp__runtimeSessionId\\\":\\\"session_v0_gjskqw0ky94\\\",\\\"dsp__error\\\":\\\"{\\\\\\\"name\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\",\\\\\\\"message\\\\\\\":\\\\\\\"Network error\\\\\\\",\\\\\\\"stack\\\\\\\":\\\\\\\"LylaError[NETWORK]\\\\\\\\n    at o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:35982)\\\\\\\\n    at onNetworkError (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:31771)\\\\\\\\n    at XMLHttpRequest.<anonymous> (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:38362)\\\\\\\\n    at c (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:29221)\\\\\\\\n    at async o (https://fe-static.deepseek.com/chat/static/default-vendors.b3428ecdc9.js:1:34999)\\\\\\\\n    at async oj (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:1021472)\\\\\\\\n    at async nl.poll (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:862691)\\\\\\\\n    at async nl.start (https://fe-static.deepseek.com/chat/static/main.3b1e8e2a6f.js:1:863964)\\\\\\\",\\\\\\\"error\\\\\\\":null,\\\\\\\"logId\\\\\\\":\\\\\\\"[unset]\\\\\\\",\\\\\\\"httpStatus\\\\\\\":\\\\\\\"-1\\\\\\\"}\\\",\\\"ds_url\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_method\\\":\\\"GET\\\",\\\"ds_duration\\\":66,\\\"ds_metricDuration\\\":66,\\\"ds_path\\\":\\\"https://hif-dliq.deepseek.com/query\\\",\\\"ds_status\\\":\\\"-1\\\",\\\"ds_logId\\\":\\\"[unset]\\\",\\\"ds_errorType\\\":\\\"client\\\",\\\"ds_code\\\":\\\"none\\\",\\\"dsp__windowWidth\\\":652,\\\"dsp__windowHeight\\\":820,\\\"dsp__documentHidden\\\":\\\"false\\\",\\\"dsp__location\\\":\\\"https://chat.deepseek.com/a/chat/s/1b98671f-c1f7-40d2-b008-dcbcb12bc831\\\",\\\"dsp__host\\\":\\\"chat.deepseek.com\\\",\\\"event_index\\\":1778510847138}\",\"local_time_ms\":1778510602578,\"is_bav\":0,\"session_id\":\"7155ef82-5ee3-40d9-b660-5d32a2df3471\"}],\"user\":{\"user_unique_id\":\"a55600ff-fbf9-4f3c-96f4-06e291b6891b\",\"web_id\":\"7470085611177899021\"},\"header\":{\"app_id\":20006317,\"os_name\":\"windows\",\"os_version\":\"10\",\"device_model\":\"Windows NT 10.0\",\"language\":\"zh-CN\",\"platform\":\"web\",\"sdk_version\":\"5.2.11_tob\",\"sdk_lib\":\"js\",\"timezone\":8,\"tz_offset\":-28800,\"resolution\":\"1536x864\",\"browser\":\"Microsoft Edge\",\"browser_version\":\"148.0.0.0\",\"referrer\":\"\",\"referrer_host\":\"\",\"width\":1536,\"height\":864,\"screen_width\":1536,\"screen_height\":864,\"custom\":\"{\\\"commit_id\\\":\\\"861862c6\\\",\\\"commit_datetime\\\":\\\"2026/05/09 15:18:34\\\",\\\"origin_referrer\\\":\\\"\\\",\\\"origin_referrer_host\\\":\\\"\\\"}\"},\"local_time\":1778510602,\"verbose\":1}]",
+  "method": "POST"
+});

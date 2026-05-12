@@ -4,16 +4,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ChatFree</title>
-  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="app.css">
   <link rel="stylesheet" href="vendor/highlight-theme.css">
 </head>
 <body>
   <div id="app">
     <header id="header">
       <h1 id="title">ChatFree</h1>
-      <div id="status-bar">
-        <span id="status-dot"></span>
-        <span id="status-text">Checking...</span>
+      <div id="header-controls">
+        <select id="backend-select">
+          <option value="deepseek">DeepSeek</option>
+          <option value="chatgpt">ChatGPT</option>
+        </select>
+        <div id="status-bar">
+          <span id="status-dot"></span>
+          <span id="status-text">Checking...</span>
+        </div>
       </div>
     </header>
 
@@ -34,6 +40,6 @@
 
   <script src="vendor/marked.umd.js"></script>
   <script src="vendor/highlight.min.js"></script>
-  <script src="popup.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

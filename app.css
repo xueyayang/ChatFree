@@ -38,6 +38,29 @@ body {
   letter-spacing: -0.3px;
 }
 
+#header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+#backend-select {
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #3a3f4b;
+  background: #161b22;
+  color: #e1e5eb;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#backend-select:focus {
+  border-color: #539bf5;
+}
+
 #status-bar {
   display: flex;
   align-items: center;

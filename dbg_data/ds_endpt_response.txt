@@ -1,0 +1,227 @@
+https://chat.deepseek.com/api/v0/chat/completion
+
+event: ready
+data: {"request_message_id":1,"response_message_id":2,"model_type":"default"}
+
+event: update_session
+data: {"updated_at":1778509013.573211}
+
+data: {"v":{"response":{"message_id":2,"parent_id":1,"model":"","role":"ASSISTANT","thinking_enabled":true,"ban_edit":false,"ban_regenerate":false,"status":"WIP","incomplete_message":null,"accumulated_token_usage":0,"feedback":null,"inserted_at":1778509013.566001,"search_enabled":true,"fragments":[{"id":2,"type":"THINK","content":"嗯","elapsed_secs":null,"references":[],"stage_id":1}],"conversation_mode":"DEFAULT","has_pending_fragment":false,"auto_continue":false}}}
+
+data: {"p":"response/fragments/-1/content","o":"APPEND","v":"，"}
+
+data: {"v":"用户"}
+
+data: {"v":"发"}
+
+data: {"v":"了一个"}
+
+data: {"v":"简单的"}
+
+data: {"v":"问候"}
+
+data: {"v":"“"}
+
+data: {"v":"你好"}
+
+data: {"v":"”，"}
+
+data: {"v":"这是一个"}
+
+data: {"v":"非常"}
+
+data: {"v":"基础的"}
+
+data: {"v":"社交"}
+
+data: {"v":"开场"}
+
+data: {"v":"。"}
+
+data: {"v":"我需要"}
+
+data: {"v":"友好"}
+
+data: {"v":"地"}
+
+data: {"v":"回应"}
+
+data: {"v":"，"}
+
+data: {"v":"确认"}
+
+data: {"v":"收到"}
+
+data: {"v":"问候"}
+
+data: {"v":"，"}
+
+data: {"v":"并"}
+
+data: {"v":"主动"}
+
+data: {"v":"提供"}
+
+data: {"v":"帮助"}
+
+data: {"v":"或"}
+
+data: {"v":"引导"}
+
+data: {"v":"对话"}
+
+data: {"v":"继续"}
+
+data: {"v":"。"}
+
+data: {"v":"可以用"}
+
+data: {"v":"热情"}
+
+data: {"v":"但"}
+
+data: {"v":"简洁"}
+
+data: {"v":"的语气"}
+
+data: {"v":"回复"}
+
+data: {"v":"，"}
+
+data: {"v":"加上"}
+
+data: {"v":"开放"}
+
+data: {"v":"式的"}
+
+data: {"v":"提问"}
+
+data: {"v":"，"}
+
+data: {"v":"让"}
+
+data: {"v":"用户"}
+
+data: {"v":"更容易"}
+
+data: {"v":"展开"}
+
+data: {"v":"话题"}
+
+data: {"v":"。"}
+
+data: {"v":"想到了"}
+
+data: {"v":"用"}
+
+data: {"v":"表情"}
+
+data: {"v":"符号"}
+
+data: {"v":"增加"}
+
+data: {"v":"亲和"}
+
+data: {"v":"力"}
+
+data: {"v":"，"}
+
+data: {"v":"然后"}
+
+data: {"v":"直接"}
+
+data: {"v":"说明"}
+
+data: {"v":"我的"}
+
+data: {"v":"助手"}
+
+data: {"v":"身份"}
+
+data: {"v":"和"}
+
+data: {"v":"愿意"}
+
+data: {"v":"提供"}
+
+data: {"v":"帮助"}
+
+data: {"v":"的态度"}
+
+data: {"v":"，"}
+
+data: {"v":"最后"}
+
+data: {"v":"用一个"}
+
+data: {"v":"开放式"}
+
+data: {"v":"问题"}
+
+data: {"v":"结束"}
+
+data: {"v":"。"}
+
+data: {"p":"response/fragments/-1/elapsed_secs","o":"SET","v":2.627138029}
+
+data: {"p":"response/fragments","o":"APPEND","v":[{"id":3,"type":"RESPONSE","content":"你好","references":[],"stage_id":1}]}
+
+data: {"p":"response/fragments/-1/content","v":"！"}
+
+data: {"v":"很高兴"}
+
+data: {"v":"见到"}
+
+data: {"v":"你"}
+
+data: {"v":"，"}
+
+data: {"v":"有什么"}
+
+data: {"v":"我可以"}
+
+data: {"v":"帮"}
+
+data: {"v":"你的"}
+
+data: {"v":"吗"}
+
+data: {"v":"？"}
+
+data: {"v":"😊"}
+
+data: {"p":"response","o":"BATCH","v":[{"p":"accumulated_token_usage","v":45},{"p":"quasi_status","v":"FINISHED"}]}
+
+data: {"p":"response/status","o":"SET","v":"FINISHED"}
+
+event: update_session
+data: {"updated_at":1778509016.906436}
+
+event: title
+data: {"content":"用户问候助手回应"}
+
+event: close
+data: {"click_behavior":"none","auto_resume":false}
+
+       上面是 completion，不知道哪个可能是发送的过程
+create_pow_challenge
+list
+Q blob:https://chat.deepseek.com/51cac2a8-3e4a-43df-8e41-763...
+Q 33614.570c5fac7d.js
+Q 60816.206e80cf1d.js
+O sha3_wasm_bg.7b9ca65ddd.wasm
+list
+create_pow_challenge
+list
+Q blob:https://chat.deepseek.com/3bce752a-c3c1-4d23-95b0-3e...
+Q 33614.570c5fac7d.js
+Q 60816.206e80cf1d.js
+Q sha3_wasm_bg.7b9ca65ddd.wasm
+list
+list
+completion
+create
+list
+list
+list
+list
