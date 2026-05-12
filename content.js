@@ -72,23 +72,19 @@
     const allMarkdown = [...chatArea.querySelectorAll('.ds-markdown')];
 
     // Group .ds-markdown elements by their AI response container.
-    // DeepSeek uses multiple .ds-markdown blocks per AI response (one per
-    // paragraph / code block), so counting them directly overcounts.
     const aiContainers = groupByAiContainer(allMarkdown);
     const A = aiContainers.length;
 
-    // Extract full HTML of each AI response by joining the innerHTML of all
-    // .ds-markdown blocks that belong to that container. This preserves
-    // formatting (code highlighting, tables, bold, etc.).
+    // Full HTML per AI response (for polling replacement).
     const aiHtmls = aiContainers.map(c => {
       const blocks = [...c.querySelectorAll('.ds-markdown')];
       return blocks.map(b => b.innerHTML).join('');
     }).filter(Boolean);
 
-    // Count user messages by finding the TOC in the right sidebar (most
-    // reliable — DeepSeek extracts questions from the conversation) or by
-    // matching user-message elements to AI response containers.
-    const Q = countUserMessagesV2(aiContainers, chatArea, allMarkdown);
+    // Build ordered conversation: each AI response paired with its
+    // preceding user question, interleaved in DOM order.
+    const conversation = buildConversation(aiContainers, chatArea);
+    const Q = conversation.filter(m => m.role === 'user').length;
 
     // Last markdown block in main chat — use innerHTML to preserve formatting
     const lastMd = allMarkdown.length > 0 ? allMarkdown[allMarkdown.length - 1] : null;
@@ -109,6 +105,7 @@
       hasRegenerateButton: hasRegen,
       sessionId: location.pathname.startsWith('/a/chat/') ? location.pathname.split('/').pop() : null,
       aiHtmls: aiHtmls,
+      conversation: conversation,
       totalPageMarkdown: totalPageMd,
       chatAreaMarkdown: allMarkdown.length,
       injectionId: window._chatfree_injection_id || '?'
@@ -151,6 +148,52 @@
       groups.get(container).push(md);
     }
     return sortEls([...groups.keys()]);
+  }
+
+  // Build ordered conversation: walk AI containers in DOM order, find each
+  // one's preceding user message, and interleave.
+  function buildConversation(aiContainers, chatArea) {
+    const conversation = [];
+    const seenUserEls = new Set();
+
+    for (const ai of aiContainers) {
+      // Find the user message just before this AI response
+      const userEl = findPrecedingUserMessage(ai, chatArea);
+      if (userEl && !seenUserEls.has(userEl)) {
+        seenUserEls.add(userEl);
+        const text = (userEl.textContent || '').trim();
+        if (text) conversation.push({ role: 'user', text: text });
+      }
+
+      // Extract AI response HTML from .ds-markdown blocks within this container
+      const blocks = [...ai.querySelectorAll('.ds-markdown')];
+      const html = blocks.map(b => b.innerHTML).join('');
+      if (html) conversation.push({ role: 'assistant', html: html });
+    }
+
+    return conversation;
+  }
+
+  // Walk previous siblings from an AI container to find the user message
+  // element that immediately precedes it. Returns null if not found.
+  function findPrecedingUserMessage(aiContainer, chatArea) {
+    let el = aiContainer;
+    for (let i = 0; i < 8; i++) {
+      const prev = el.previousElementSibling;
+      if (!prev) {
+        el = el.parentElement;
+        if (!el || el === chatArea || el === document.body) break;
+        continue;
+      }
+      const text = (prev.textContent || '').trim();
+      if (text.length > 1 &&
+          !prev.querySelector('.ds-markdown') &&
+          !prev.querySelector('.ds-think-content')) {
+        return prev;
+      }
+      el = prev;
+    }
+    return null;
   }
 
   // Count user messages: first try the right-side TOC (DeepSeek extracts

@@ -210,13 +210,13 @@ async function runSync() {
     }
 
     const p = result.page || {};
-    appendDebug('app', `Sync: Q=${p.Q} A=${p.A} balanced=${p.balanced} streaming=${p.streaming} lastLen=${p.lastMarkdownLength} inj=${p.injectionId || '?'} chatMd=${p.chatAreaMarkdown} pageMd=${p.totalPageMarkdown}`);
+    const conv = p.conversation || [];
+    appendDebug('app', `Sync: Q=${p.Q} A=${p.A} msgs=${conv.length} balanced=${p.balanced} streaming=${p.streaming} lastLen=${p.lastMarkdownLength} inj=${p.injectionId || '?'} chatMd=${p.chatAreaMarkdown} pageMd=${p.totalPageMarkdown}`);
 
     state.syncedA = p.A;
     const lastHtml = p.aiHtmls && p.aiHtmls.length > 0 ? p.aiHtmls[p.aiHtmls.length - 1] : '';
     state.lastMdLen = lastHtml.length;
 
-    // Render the full conversation: all AI responses as messages
     renderFullConversation(p);
 
     if (p.streaming && !p.hasRegenerateButton) {
@@ -243,23 +243,26 @@ async function runSync() {
 function renderFullConversation(p) {
   clearEmptyState();
 
-  const aiHtmls = p.aiHtmls || [];
-  if (aiHtmls.length === 0) {
+  const conversation = p.conversation || [];
+  if (conversation.length === 0) {
     renderEmptyState();
     return;
   }
 
-  // Render each AI response as a message bubble using innerHTML directly
-  // (content.js already extracts rendered HTML from .ds-markdown blocks).
-  for (let i = 0; i < aiHtmls.length; i++) {
-    const isLast = (i === aiHtmls.length - 1);
-    appendAssistantHtml(aiHtmls[i]);
+  for (let i = 0; i < conversation.length; i++) {
+    const m = conversation[i];
+    if (m.role === 'user') {
+      appendMessage('user', m.text || '');
+    } else {
+      const isLastAssistant = !conversation.slice(i + 1).some(x => x.role === 'assistant');
+      appendAssistantHtml(m.html || '');
 
-    if (isLast && p.streaming) {
-      state.currentAiRawText = aiHtmls[i];
-    } else if (isLast) {
-      state.currentAiBubble = null;
-      state.currentAiRawText = '';
+      if (isLastAssistant && p.streaming) {
+        state.currentAiRawText = m.html || '';
+      } else if (isLastAssistant) {
+        state.currentAiBubble = null;
+        state.currentAiRawText = '';
+      }
     }
   }
 }
