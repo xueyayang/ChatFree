@@ -42,6 +42,7 @@ function installSSEInterceptor() {
 }
 
 async function processSSEStream(response, requestId) {
+  const t0 = Date.now();
   sseActive = true;
 
   if (observer) {
@@ -59,13 +60,36 @@ async function processSSEStream(response, requestId) {
   const decoder = new TextDecoder();
   let buffer = '';
   let hasContent = false;
+  let doneSignaled = false;
+  let silenceTimer = null;
+  let firstChunkAt = 0;
+
+  function resetSilenceTimer() {
+    if (silenceTimer) clearTimeout(silenceTimer);
+    silenceTimer = setTimeout(() => {
+      if (requestId === activeRequestId && sseActive) {
+        const elapsed = Date.now() - t0;
+        console.log('[ChatFree:ChatGPT] SSE: trailing silence (800ms) at +' + elapsed + 'ms, forcing done (hasContent=' + hasContent + ')');
+        reader.cancel('silence').catch(() => {});
+        doneSignaled = true;
+      }
+    }, 800);
+  }
+
+  function dbgSSE(msg) {
+    console.log('[ChatFree:ChatGPT] SSE: ' + msg);
+    chrome.runtime.sendMessage({ type: 'debug', source: 'cs-chatgpt', message: msg, level: null }).catch(() => {});
+  }
 
   try {
+    resetSilenceTimer();
+    dbgSSE('waiting for stream start...');
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) { dbgSSE('reader done at +' + (Date.now() - t0) + 'ms'); break; }
 
-      if (requestId !== activeRequestId) break;
+      if (requestId !== activeRequestId) { dbgSSE('requestId mismatch, aborting'); break; }
+      if (doneSignaled) break;
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split('\n');
@@ -77,7 +101,14 @@ async function processSSEStream(response, requestId) {
 
         try {
           const jsonStr = line.slice(5).trim();
-          if (!jsonStr || jsonStr === '[DONE]') continue;
+          if (!jsonStr) continue;
+          if (jsonStr === '[DONE]') {
+            const elapsed = Date.now() - t0;
+            dbgSSE('[DONE] received at +' + elapsed + 'ms (firstChunkAt=+' + (firstChunkAt ? firstChunkAt - t0 : '?') + 'ms)');
+            reader.cancel('done').catch(() => {});
+            doneSignaled = true;
+            break;
+          }
 
           const data = JSON.parse(jsonStr);
 
@@ -88,6 +119,8 @@ async function processSSEStream(response, requestId) {
               for (const part of content.parts) {
                 if (typeof part === 'string' && part.length > 0 && requestId === activeRequestId) {
                   hasContent = true;
+                  if (!firstChunkAt) firstChunkAt = Date.now();
+                  resetSilenceTimer();
                   chrome.runtime.sendMessage({ type: 'chunk', content: part }).catch(() => {});
                 }
               }
@@ -97,19 +130,28 @@ async function processSSEStream(response, requestId) {
       }
     }
   } finally {
+    if (silenceTimer) clearTimeout(silenceTimer);
     if (currentReader === reader) {
       currentReader = null;
     }
     sseActive = false;
 
     if (requestId === activeRequestId && hasContent) {
+      const elapsed = Date.now() - t0;
+      dbgSSE('done sent +' + elapsed + 'ms (firstChunkAt=+' + (firstChunkAt ? firstChunkAt - t0 : '?') + 'ms, signaled=' + doneSignaled + ')');
       chrome.runtime.sendMessage({ type: 'done' }).catch(() => {});
     }
   }
 }
 
+function dbgChat(msg) {
+  console.log('[ChatFree:ChatGPT] ' + msg);
+  chrome.runtime.sendMessage({ type: 'debug', source: 'cs-chatgpt', message: msg, level: null }).catch(() => {});
+}
+
 // ---- DOM manipulation for sending ----
 async function doChatViaDOM(message) {
+  const t0 = Date.now();
   // ---- Reset state for the new request ----
   activeRequestId++;
   const thisRequestId = activeRequestId;
@@ -165,15 +207,17 @@ async function doChatViaDOM(message) {
   }
 
   await sleep(300);
+  dbgChat('doChat: input filled +' + (Date.now() - t0) + 'ms');
 
   // Start DOM observer as fallback
   startObservingResponse(thisRequestId);
 
+  const tSend = Date.now();
   const sent = await trySend(input);
   if (!sent) {
     throw new Error('Failed to send ChatGPT message');
   }
-  console.log('[ChatFree:ChatGPT] message sent, requestId:', thisRequestId);
+  dbgChat('doChat: message sent +' + (Date.now() - t0) + 'ms (trySend took ' + (Date.now() - tSend) + 'ms, requestId=' + thisRequestId + ')');
 }
 
 function findInput() {
@@ -207,28 +251,40 @@ function findInput() {
   return null;
 }
 
+function isInputCleared(input) {
+  return input.getAttribute('contenteditable') === 'true'
+    ? (input.textContent || '').trim() === ''
+    : (input.value || '') === '';
+}
+
+async function waitForSend(input, label) {
+  const t0 = Date.now();
+  for (let i = 0; i < 10; i++) {
+    await sleep(200);
+    if (isInputCleared(input) || input.disabled) {
+      dbgChat(`waitForSend[${label}]: cleared after ${Date.now() - t0}ms (iter ${i + 1})`);
+      return true;
+    }
+  }
+  dbgChat(`waitForSend[${label}]: timeout after ${Date.now() - t0}ms`);
+  return false;
+}
+
 async function trySend(input) {
+  const t0 = Date.now();
   await sleep(200);
 
   // Method 1: Press Enter
-  console.log('[ChatFree:ChatGPT] trying Enter key to send...');
+  dbgChat('trying Enter key to send...');
   input.focus();
   input.dispatchEvent(new KeyboardEvent('keydown', {
     key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
     bubbles: true, cancelable: true, composed: true
   }));
-  await sleep(500);
-
-  const inputEmpty = input.getAttribute('contenteditable') === 'true'
-    ? (input.textContent || '').trim() === ''
-    : (input.value || '') === '';
-  if (inputEmpty || input.disabled) {
-    console.log('[ChatFree:ChatGPT] Enter key worked');
-    return true;
-  }
+  if (await waitForSend(input, 'Enter')) { dbgChat('Enter key worked +' + (Date.now() - t0) + 'ms'); return true; }
 
   // Method 2: Search for send button
-  console.log('[ChatFree:ChatGPT] searching for send button...');
+  dbgChat('searching for send button...');
   let el = input;
   for (let i = 0; i < 6; i++) {
     el = el.parentElement;
@@ -239,16 +295,9 @@ async function trySend(input) {
         const rect = btn.getBoundingClientRect();
         const inputRect = input.getBoundingClientRect();
         if (Math.abs(rect.bottom - inputRect.bottom) < 100) {
-          console.log('[ChatFree:ChatGPT] clicking button:', btn.tagName, btn.className?.slice(0, 60));
+          dbgChat('clicking button: ' + btn.tagName + ' ' + (btn.className || '').slice(0, 60));
           btn.click();
-          await sleep(500);
-          const nowEmpty = input.getAttribute('contenteditable') === 'true'
-            ? (input.textContent || '').trim() === ''
-            : (input.value || '') === '';
-          if (nowEmpty || input.disabled) {
-            console.log('[ChatFree:ChatGPT] button click worked');
-            return true;
-          }
+          if (await waitForSend(input, 'nearBtn')) { dbgChat('nearBtn worked +' + (Date.now() - t0) + 'ms'); return true; }
         }
       }
     }
@@ -256,21 +305,18 @@ async function trySend(input) {
 
   // Method 3: Scan all buttons with SVG in bottom half
   const allBtns = document.querySelectorAll('button');
-  console.log('[ChatFree:ChatGPT] scanning', allBtns.length, 'buttons...');
+  dbgChat('scanning ' + allBtns.length + ' buttons for SVG...');
   for (const btn of allBtns) {
     if (btn.querySelector('svg') && btn.offsetParent !== null) {
       const rect = btn.getBoundingClientRect();
       if (rect.bottom > window.innerHeight * 0.6) {
         btn.click();
-        await sleep(500);
-        const nowEmpty = input.getAttribute('contenteditable') === 'true'
-          ? (input.textContent || '').trim() === ''
-          : (input.value || '') === '';
-        if (nowEmpty || input.disabled) return true;
+        if (await waitForSend(input, 'svgBtn')) { dbgChat('svgBtn worked +' + (Date.now() - t0) + 'ms'); return true; }
       }
     }
   }
 
+  dbgChat('all send methods failed +' + (Date.now() - t0) + 'ms');
   return false;
 }
 

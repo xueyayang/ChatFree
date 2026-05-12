@@ -392,6 +392,7 @@
 
   // ---- Send message via DOM (kept for chat action) ----
   async function doChatViaDOM(message, requestId) {
+    const t0 = Date.now();
     installSSEInterceptor();
 
     activeRequestId = requestId;
@@ -407,10 +408,12 @@
     input.focus();
     fillInput(input, message);
     await sleep(300);
+    dbg(`doChat: input filled +${Date.now() - t0}ms`);
 
+    const tSend = Date.now();
     const sent = await trySend(input);
     if (!sent) throw new Error('Failed to send message');
-    dbg('Message sent (requestId=' + requestId + ')');
+    dbg(`doChat: message sent +${Date.now() - t0}ms (trySend took ${Date.now() - tSend}ms, requestId=${requestId})`);
   }
 
   function findInput() {
@@ -451,8 +454,21 @@
     }
   }
 
+  async function waitForSend(input, label) {
+    const t0 = Date.now();
+    for (let i = 0; i < 10; i++) {
+      await sleep(200);
+      if (input.value === '' || input.disabled) {
+        dbg(`waitForSend[${label}]: cleared after ${Date.now() - t0}ms (iter ${i + 1})`);
+        return true;
+      }
+    }
+    dbg(`waitForSend[${label}]: timeout after ${Date.now() - t0}ms`);
+    return false;
+  }
+
   async function trySend(input) {
-    const SEND_WAIT = 1500;
+    const t0 = Date.now();
     await sleep(200);
 
     input.focus();
@@ -464,8 +480,7 @@
       key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
       bubbles: true, cancelable: true, composed: true
     }));
-    await sleep(SEND_WAIT);
-    if (input.value === '' || input.disabled) return true;
+    if (await waitForSend(input, 'Enter')) { dbg(`trySend: Enter worked +${Date.now() - t0}ms`); return true; }
 
     const inputRect = input.getBoundingClientRect();
     const allBtns = document.querySelectorAll('button');
@@ -474,8 +489,7 @@
       const rect = btn.getBoundingClientRect();
       if (Math.abs(rect.bottom - inputRect.bottom) < 150) {
         btn.click();
-        await sleep(SEND_WAIT);
-        if (input.value === '' || input.disabled) return true;
+        if (await waitForSend(input, 'nearBtn')) { dbg(`trySend: nearBtn worked +${Date.now() - t0}ms`); return true; }
       }
     }
 
@@ -484,8 +498,7 @@
       const rect = btn.getBoundingClientRect();
       if (rect.bottom > window.innerHeight * 0.5 && rect.top < window.innerHeight) {
         btn.click();
-        await sleep(SEND_WAIT);
-        if (input.value === '' || input.disabled) return true;
+        if (await waitForSend(input, 'svgBtn')) { dbg(`trySend: svgBtn worked +${Date.now() - t0}ms`); return true; }
       }
     }
 
@@ -494,19 +507,18 @@
       key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
       ctrlKey: true, bubbles: true, cancelable: true, composed: true
     }));
-    await sleep(SEND_WAIT);
-    if (input.value === '' || input.disabled) return true;
+    if (await waitForSend(input, 'Ctrl+Enter')) { dbg(`trySend: Ctrl+Enter worked +${Date.now() - t0}ms`); return true; }
 
     for (const btn of allBtns) {
       if (!btn.offsetParent || btn.disabled) continue;
       const rect = btn.getBoundingClientRect();
       if (rect.bottom > window.innerHeight * 0.55 && rect.top < window.innerHeight) {
         btn.click();
-        await sleep(SEND_WAIT);
-        if (input.value === '' || input.disabled) return true;
+        if (await waitForSend(input, 'bottomBtn')) { dbg(`trySend: bottomBtn worked +${Date.now() - t0}ms`); return true; }
       }
     }
 
+    dbg(`trySend: all methods failed +${Date.now() - t0}ms`);
     return false;
   }
 
@@ -536,17 +548,35 @@
   }
 
   async function processSSEStream(response, requestId) {
+    const t0 = Date.now();
     sseActive = true;
     const reader = response.body.getReader();
     currentReader = reader;
     const decoder = new TextDecoder();
-    let buffer = '', chunkCount = 0, inResponse = false;
+    let buffer = '', chunkCount = 0, inResponse = false, doneSignaled = false;
+    let silenceTimer = null;
+    let firstChunkAt = 0;
+
+    function resetSilenceTimer() {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => {
+        if (requestId === activeRequestId && sseActive) {
+          const elapsed = Date.now() - t0;
+          dbg(`SSE: trailing silence (800ms) at +${elapsed}ms, forcing done (chunks=${chunkCount})`);
+          reader.cancel('silence').catch(() => {});
+          doneSignaled = true;
+        }
+      }, 800);
+    }
 
     try {
+      resetSilenceTimer();
+      dbg(`SSE: waiting for stream start...`);
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
-        if (requestId !== activeRequestId) break;
+        if (done) { dbg(`SSE: reader done at +${Date.now() - t0}ms`); break; }
+        if (requestId !== activeRequestId) { dbg(`SSE: requestId mismatch, aborting`); break; }
+        if (doneSignaled) break;
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
@@ -557,11 +587,20 @@
           if (requestId !== activeRequestId) break;
           try {
             const jsonStr = line.slice(5).trim();
-            if (!jsonStr || jsonStr === '[DONE]') continue;
+            if (!jsonStr) continue;
+            if (jsonStr === '[DONE]') {
+              const elapsed = Date.now() - t0;
+              dbg(`SSE: [DONE] received at +${elapsed}ms (chunks=${chunkCount}, firstChunkAt=+${firstChunkAt - t0}ms)`);
+              reader.cancel('done').catch(() => {});
+              doneSignaled = true;
+              break;
+            }
             const data = JSON.parse(jsonStr);
             const result = extractSSEText(data, inResponse);
             if (result.text && requestId === activeRequestId) {
               chunkCount++;
+              if (!firstChunkAt) firstChunkAt = Date.now();
+              resetSilenceTimer();
               chrome.runtime.sendMessage({ type: 'chunk', content: result.text, requestId }).catch(() => {});
             }
             if (result.enteredResponse) inResponse = true;
@@ -569,10 +608,12 @@
         }
       }
     } finally {
+      if (silenceTimer) clearTimeout(silenceTimer);
       if (currentReader === reader) currentReader = null;
       sseActive = false;
       if (requestId === activeRequestId && chunkCount > 0) {
-        dbg(`SSE: stream done (${chunkCount} chunks)`);
+        const elapsed = Date.now() - t0;
+        dbg(`SSE: done sent +${elapsed}ms (${chunkCount} chunks, firstChunkAt=+${firstChunkAt ? firstChunkAt - t0 : '?'}ms, signaled=${doneSignaled})`);
         chrome.runtime.sendMessage({ type: 'done', requestId }).catch(() => {});
       }
     }

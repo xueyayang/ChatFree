@@ -24,7 +24,9 @@ const state = {
   requestId: 0,
   streaming: false,
   currentAiBubble: null,
-  currentAiRawText: ''
+  currentAiRawText: '',
+  sendTime: 0,           // Date.now() when message was sent
+  firstChunkTime: 0      // Date.now() when first chunk arrived
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -117,6 +119,8 @@ async function onBackendChange() {
   state.streaming = false;
   state.currentAiBubble = null;
   state.currentAiRawText = '';
+  state.sendTime = 0;
+  state.firstChunkTime = 0;
   inputEl.disabled = true;
   sendBtn.disabled = true;
   syncBtn.disabled = true;
@@ -390,6 +394,8 @@ async function sendMessage() {
 
   inputEl.value = '';
   state.streaming = true;
+  state.sendTime = Date.now();
+  state.firstChunkTime = 0;
   state.requestId++;
   const thisRequestId = state.requestId;
   sendBtn.disabled = true;
@@ -411,6 +417,7 @@ async function sendMessage() {
       message: text,
       requestId: thisRequestId
     });
+    appendDebug('app', `Chat action acknowledged +${Date.now() - state.sendTime}ms, waiting for stream...`);
   } catch (err) {
     finishStreaming();
     appendError(`Failed to send: ${err.message}`);
@@ -451,6 +458,10 @@ function appendMessage(role, text) {
 
 function appendChunk(chunk) {
   if (state.currentAiBubble) {
+    if (!state.firstChunkTime) {
+      state.firstChunkTime = Date.now();
+      appendDebug('app', `First chunk received +${state.firstChunkTime - state.sendTime}ms after send`);
+    }
     state.currentAiRawText += chunk;
     state.currentAiBubble.innerHTML = marked.parse(state.currentAiRawText);
     scrollToBottom();
@@ -458,9 +469,14 @@ function appendChunk(chunk) {
 }
 
 function finishStreaming() {
+  const totalElapsed = Date.now() - state.sendTime;
+  const firstChunkDelay = state.firstChunkTime ? state.firstChunkTime - state.sendTime : '?';
+  appendDebug('app', `Stream finished: total=${totalElapsed}ms, firstChunkDelay=${firstChunkDelay}ms`);
   state.streaming = false;
   state.currentAiBubble = null;
   state.currentAiRawText = '';
+  state.sendTime = 0;
+  state.firstChunkTime = 0;
   sendBtn.disabled = false;
   inputEl.disabled = false;
   inputEl.focus();
