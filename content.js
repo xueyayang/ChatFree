@@ -77,18 +77,23 @@
     const aiContainers = groupByAiContainer(allMarkdown);
     const A = aiContainers.length;
 
-    // Extract full texts of all AI responses
-    const aiTexts = aiContainers.map(c => (c.textContent || '').trim()).filter(Boolean);
+    // Extract full HTML of each AI response by joining the innerHTML of all
+    // .ds-markdown blocks that belong to that container. This preserves
+    // formatting (code highlighting, tables, bold, etc.).
+    const aiHtmls = aiContainers.map(c => {
+      const blocks = [...c.querySelectorAll('.ds-markdown')];
+      return blocks.map(b => b.innerHTML).join('');
+    }).filter(Boolean);
 
     // Count user messages by finding the TOC in the right sidebar (most
     // reliable — DeepSeek extracts questions from the conversation) or by
     // matching user-message elements to AI response containers.
     const Q = countUserMessagesV2(aiContainers, chatArea, allMarkdown);
 
-    // Last markdown block in main chat
+    // Last markdown block in main chat — use innerHTML to preserve formatting
     const lastMd = allMarkdown.length > 0 ? allMarkdown[allMarkdown.length - 1] : null;
-    const lastText = lastMd ? (lastMd.textContent || '') : '';
-    const lastLen = lastText.length;
+    const lastHtml = lastMd ? lastMd.innerHTML : '';
+    const lastLen = lastHtml.length;
     const hasRegen = lastMd ? hasRegenerateButton(lastMd) : false;
     const streaming = lastMd && lastLen > 0 && !hasRegen;
 
@@ -100,10 +105,10 @@
       balanced: Q === A || Q === 0,
       streaming: streaming,
       lastMarkdownLength: lastLen,
-      lastMarkdownText: lastText.slice(0, 1000),
+      lastMarkdownText: lastHtml,
       hasRegenerateButton: hasRegen,
       sessionId: location.pathname.startsWith('/a/chat/') ? location.pathname.split('/').pop() : null,
-      aiTexts: aiTexts.map(t => t.slice(0, 1000)),
+      aiHtmls: aiHtmls,
       totalPageMarkdown: totalPageMd,
       chatAreaMarkdown: allMarkdown.length,
       injectionId: window._chatfree_injection_id || '?'

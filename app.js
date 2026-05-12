@@ -213,7 +213,8 @@ async function runSync() {
     appendDebug('app', `Sync: Q=${p.Q} A=${p.A} balanced=${p.balanced} streaming=${p.streaming} lastLen=${p.lastMarkdownLength} inj=${p.injectionId || '?'} chatMd=${p.chatAreaMarkdown} pageMd=${p.totalPageMarkdown}`);
 
     state.syncedA = p.A;
-    state.lastMdLen = p.lastMarkdownLength;
+    const lastHtml = p.aiHtmls && p.aiHtmls.length > 0 ? p.aiHtmls[p.aiHtmls.length - 1] : '';
+    state.lastMdLen = lastHtml.length;
 
     // Render the full conversation: all AI responses as messages
     renderFullConversation(p);
@@ -242,26 +243,49 @@ async function runSync() {
 function renderFullConversation(p) {
   clearEmptyState();
 
-  const aiTexts = p.aiTexts || [];
-  if (aiTexts.length === 0) {
+  const aiHtmls = p.aiHtmls || [];
+  if (aiHtmls.length === 0) {
     renderEmptyState();
     return;
   }
 
-  // Render each AI response as a message bubble
-  for (let i = 0; i < aiTexts.length; i++) {
-    const isLast = (i === aiTexts.length - 1);
-    appendMessage('assistant', aiTexts[i]);
+  // Render each AI response as a message bubble using innerHTML directly
+  // (content.js already extracts rendered HTML from .ds-markdown blocks).
+  for (let i = 0; i < aiHtmls.length; i++) {
+    const isLast = (i === aiHtmls.length - 1);
+    appendAssistantHtml(aiHtmls[i]);
 
     if (isLast && p.streaming) {
-      // The last bubble is the streaming target
-      state.currentAiRawText = aiTexts[i];
+      state.currentAiRawText = aiHtmls[i];
     } else if (isLast) {
-      // Last message is complete — clear streaming state
       state.currentAiBubble = null;
       state.currentAiRawText = '';
     }
   }
+}
+
+// Render an assistant message with pre-rendered HTML (no markdown parsing).
+function appendAssistantHtml(html) {
+  clearEmptyState();
+
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'message assistant';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'avatar';
+  avatar.textContent = 'AI';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.innerHTML = html;
+
+  msgDiv.appendChild(avatar);
+  msgDiv.appendChild(bubble);
+  messagesEl.appendChild(msgDiv);
+
+  state.currentAiBubble = bubble;
+  scrollToBottom();
+  return msgDiv;
 }
 
 function renderSyncSummary(p) {
@@ -307,16 +331,17 @@ async function pollSync() {
     const result = await chrome.runtime.sendMessage({ action: 'sync', backend: state.backend });
     const p = result.page || {};
 
-    // Streaming content: diff the last markdown
-    if (p.lastMarkdownLength > state.lastMdLen) {
-      const diff = p.lastMarkdownText.slice(state.lastMdLen);
-      if (diff) {
-        appendChunk(diff);
+    // Replace the last bubble entirely with the latest HTML (no diff — HTML
+    // can't be safely diffed with slice).
+    const lastHtml = p.aiHtmls && p.aiHtmls.length > 0 ? p.aiHtmls[p.aiHtmls.length - 1] : '';
+    if (lastHtml.length !== state.lastMdLen) {
+      if (state.currentAiBubble) {
+        state.currentAiBubble.innerHTML = lastHtml;
+        state.currentAiRawText = lastHtml;
       }
-      state.lastMdLen = p.lastMarkdownLength;
+      state.lastMdLen = lastHtml.length;
     }
 
-    // New markdown block appeared?
     if (p.A > state.syncedA) {
       state.syncedA = p.A;
     }
