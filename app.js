@@ -1,4 +1,5 @@
 // app.js - ChatFree standalone page UI logic
+// Working model: sync conversation from backend page, track Q/A balance.
 
 // ---- Backend config ----
 const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT' };
@@ -16,6 +17,11 @@ marked.setOptions({ renderer, breaks: true, gfm: true });
 const state = {
   backend: 'deepseek',
   loggedIn: false,
+  mode: 'display',       // 'display' | 'waiting'
+  syncedA: 0,            // last known markdown count from sync
+  lastMdLen: 0,          // last markdown length (for diffing during streaming)
+  pollTimer: null,       // polling interval in waiting mode
+  requestId: 0,
   streaming: false,
   currentAiBubble: null,
   currentAiRawText: ''
@@ -26,14 +32,24 @@ const $ = (sel) => document.querySelector(sel);
 const messagesEl = $('#messages');
 const inputEl = $('#message-input');
 const sendBtn = $('#send-btn');
+const syncBtn = $('#sync-btn');
+const testBtn = $('#test-btn');
 const statusDot = $('#status-dot');
 const statusText = $('#status-text');
 const typingEl = $('#typing-indicator');
 const backendSelect = $('#backend-select');
+const debugToggle = $('#debug-toggle');
+const debugPanel = $('#debug-panel');
+const debugLog = $('#debug-log');
+const debugClear = $('#debug-clear');
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', async () => {
   backendSelect.addEventListener('change', onBackendChange);
+  debugToggle.addEventListener('click', toggleDebugPanel);
+  debugClear.addEventListener('click', clearDebugLog);
+  testBtn.addEventListener('click', runTestPing);
+  syncBtn.addEventListener('click', runSync);
   checkLoginStatus();
   renderEmptyState();
 });
@@ -47,29 +63,80 @@ inputEl.addEventListener('keydown', (e) => {
 
 sendBtn.addEventListener('click', sendMessage);
 
+// ---- Debug panel ----
+function toggleDebugPanel() {
+  const visible = debugPanel.classList.toggle('hidden');
+  debugToggle.classList.toggle('active', !visible);
+}
+
+function clearDebugLog() {
+  debugLog.innerHTML = '<div class="debug-empty">Log cleared</div>';
+}
+
+function appendDebug(source, msg, level) {
+  if (debugLog.querySelector('.debug-empty')) debugLog.innerHTML = '';
+
+  const now = new Date();
+  const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  const entry = document.createElement('div');
+  entry.className = 'debug-entry' + (level ? ' ' + level : '');
+
+  const timeEl = document.createElement('span');
+  timeEl.className = 'debug-time';
+  timeEl.textContent = time;
+
+  const srcEl = document.createElement('span');
+  srcEl.className = 'debug-source ' + source;
+  srcEl.textContent = source;
+
+  const msgEl = document.createElement('span');
+  msgEl.className = 'debug-msg';
+  msgEl.textContent = msg;
+
+  entry.appendChild(timeEl);
+  entry.appendChild(srcEl);
+  entry.appendChild(msgEl);
+  debugLog.appendChild(entry);
+
+  debugLog.scrollTop = debugLog.scrollHeight;
+
+  while (debugLog.children.length > 200) {
+    debugLog.firstElementChild.remove();
+  }
+}
+
 // ---- Backend switching ----
 async function onBackendChange() {
+  stopPolling();
   state.backend = backendSelect.value;
-  // Clear messages when switching backend
   state.loggedIn = false;
+  state.mode = 'display';
+  state.syncedA = 0;
+  state.lastMdLen = 0;
   state.streaming = false;
   state.currentAiBubble = null;
   state.currentAiRawText = '';
   inputEl.disabled = true;
   sendBtn.disabled = true;
+  syncBtn.disabled = true;
   statusDot.className = '';
   statusText.textContent = 'Checking...';
+  appendDebug('app', 'Backend switched to ' + state.backend);
   checkLoginStatus();
 }
 
 // ---- Background message listener ----
 chrome.runtime.onMessage.addListener((msg) => {
   if (msg.type === 'chunk') {
-    if (state.streaming) appendChunk(msg.content);
+    if (state.streaming && msg.requestId === state.requestId) appendChunk(msg.content);
   } else if (msg.type === 'done') {
-    if (state.streaming) finishStreaming();
+    if (state.streaming && msg.requestId === state.requestId) finishStreaming();
   } else if (msg.type === 'error') {
-    if (state.streaming) { finishStreaming(); appendError(msg.error); }
+    if (state.streaming && msg.requestId === state.requestId) { finishStreaming(); appendError(msg.error); }
+    appendDebug('bg', 'ERROR: ' + msg.error, 'err');
+  } else if (msg.type === 'debug') {
+    appendDebug(msg.source || 'bg', msg.message, msg.level);
   }
 });
 
@@ -90,6 +157,7 @@ function updateLoginStatus(loggedIn) {
   statusText.textContent = loggedIn ? label : 'Disconnected';
   inputEl.disabled = !loggedIn;
   sendBtn.disabled = !loggedIn;
+  syncBtn.disabled = !loggedIn;
 
   if (!loggedIn) {
     inputEl.placeholder = `Log in to ${label} first...`;
@@ -102,13 +170,12 @@ function updateLoginStatus(loggedIn) {
   }
 }
 
-// ---- Render ----
+// ---- Render helpers ----
 function renderEmptyState() {
-  const label = BACKEND_LABELS[state.backend];
   messagesEl.innerHTML = `
     <div class="empty-state">
       <div class="icon">&#128172;</div>
-      <p>Start a conversation with ${label}</p>
+      <p>Click Sync to load conversation from ${BACKEND_LABELS[state.backend]}</p>
     </div>
   `;
 }
@@ -125,6 +192,169 @@ function renderLoginHint() {
   `;
 }
 
+// ---- Sync: core of the new model ----
+async function runSync() {
+  if (!state.loggedIn) return;
+
+  syncBtn.disabled = true;
+  syncBtn.textContent = '...';
+  appendDebug('app', 'Syncing with ' + state.backend + '...');
+
+  try {
+    const result = await chrome.runtime.sendMessage({ action: 'sync', backend: state.backend });
+
+    if (result.error) {
+      appendDebug('app', 'Sync failed: ' + result.error, 'err');
+      renderPingResult(null, result.error);
+      return;
+    }
+
+    const p = result.page || {};
+    appendDebug('app', `Sync: Q=${p.Q} A=${p.A} balanced=${p.balanced} streaming=${p.streaming} lastLen=${p.lastMarkdownLength} inj=${p.injectionId || '?'} chatMd=${p.chatAreaMarkdown} pageMd=${p.totalPageMarkdown}`);
+
+    state.syncedA = p.A;
+    state.lastMdLen = p.lastMarkdownLength;
+
+    // Render the full conversation: all AI responses as messages
+    renderFullConversation(p);
+
+    if (p.streaming && !p.hasRegenerateButton) {
+      // Last response is still streaming — enter waiting mode
+      state.mode = 'waiting';
+      updateStatusLine('waiting');
+      appendDebug('app', 'Entering waiting mode, last block is streaming');
+      startPolling();
+    } else {
+      state.mode = 'display';
+      stopPolling();
+      updateStatusLine('display');
+      appendDebug('app', 'Sync complete (display mode)');
+    }
+  } catch (err) {
+    appendDebug('app', 'Sync error: ' + err.message, 'err');
+    renderPingResult(null, err.message);
+  } finally {
+    syncBtn.disabled = false;
+    syncBtn.textContent = 'Sync';
+  }
+}
+
+function renderFullConversation(p) {
+  clearEmptyState();
+
+  const aiTexts = p.aiTexts || [];
+  if (aiTexts.length === 0) {
+    renderEmptyState();
+    return;
+  }
+
+  // Render each AI response as a message bubble
+  for (let i = 0; i < aiTexts.length; i++) {
+    const isLast = (i === aiTexts.length - 1);
+    appendMessage('assistant', aiTexts[i]);
+
+    if (isLast && p.streaming) {
+      // The last bubble is the streaming target
+      state.currentAiRawText = aiTexts[i];
+    } else if (isLast) {
+      // Last message is complete — clear streaming state
+      state.currentAiBubble = null;
+      state.currentAiRawText = '';
+    }
+  }
+}
+
+function renderSyncSummary(p) {
+  clearEmptyState();
+
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'ping-result';
+  const label = BACKEND_LABELS[state.backend];
+
+  msgDiv.innerHTML = `
+    <div class="ping-header ok">${label} — In Sync</div>
+    <table class="ping-table">
+      <tr><td>Questions</td><td>${p.Q}</td></tr>
+      <tr><td>Answers</td><td>${p.A}</td></tr>
+      <tr><td>Session</td><td>${escapeHtml(p.sessionId || 'N/A')}</td></tr>
+    </table>
+  `;
+
+  messagesEl.appendChild(msgDiv);
+  scrollToBottom();
+}
+
+function startPolling() {
+  stopPolling();
+  appendDebug('app', 'Polling started (every 1s)');
+  state.pollTimer = setInterval(pollSync, 1000);
+}
+
+function stopPolling() {
+  if (state.pollTimer) {
+    clearInterval(state.pollTimer);
+    state.pollTimer = null;
+  }
+}
+
+async function pollSync() {
+  if (state.mode !== 'waiting') {
+    stopPolling();
+    return;
+  }
+
+  try {
+    const result = await chrome.runtime.sendMessage({ action: 'sync', backend: state.backend });
+    const p = result.page || {};
+
+    // Streaming content: diff the last markdown
+    if (p.lastMarkdownLength > state.lastMdLen) {
+      const diff = p.lastMarkdownText.slice(state.lastMdLen);
+      if (diff) {
+        appendChunk(diff);
+      }
+      state.lastMdLen = p.lastMarkdownLength;
+    }
+
+    // New markdown block appeared?
+    if (p.A > state.syncedA) {
+      state.syncedA = p.A;
+    }
+
+    // Completion: regenerate button appeared, or streaming stopped + balanced
+    if (p.hasRegenerateButton || (!p.streaming && p.balanced)) {
+      appendDebug('app', 'Polling: complete (regen=' + p.hasRegenerateButton + ')');
+      finishSyncStreaming();
+    }
+  } catch (err) {
+    appendDebug('app', 'Poll error: ' + err.message, 'warn');
+  }
+}
+
+function finishSyncStreaming() {
+  state.mode = 'display';
+  stopPolling();
+  updateStatusLine('display');
+
+  if (state.currentAiBubble) {
+    state.currentAiBubble = null;
+    state.currentAiRawText = '';
+  }
+
+  appendDebug('app', 'Streaming finished, back to display mode');
+}
+
+function updateStatusLine(mode) {
+  const label = BACKEND_LABELS[state.backend];
+  if (mode === 'waiting') {
+    statusText.textContent = label + ' — Waiting...';
+    statusDot.className = 'waiting';
+  } else {
+    statusText.textContent = label;
+    statusDot.className = 'connected';
+  }
+}
+
 // ---- Send message ----
 async function sendMessage() {
   const text = inputEl.value.trim();
@@ -132,23 +362,31 @@ async function sendMessage() {
 
   inputEl.value = '';
   state.streaming = true;
+  state.requestId++;
+  const thisRequestId = state.requestId;
   sendBtn.disabled = true;
   inputEl.disabled = true;
 
   clearEmptyState();
   appendMessage('user', text);
-  appendMessage('assistant', ''); // placeholder
+  appendMessage('assistant', '');
   showTyping(true);
+  state.mode = 'waiting';
+  updateStatusLine('waiting');
+
+  appendDebug('app', 'Sending to ' + state.backend + ' [req=' + thisRequestId + ']: "' + text.slice(0, 60) + (text.length > 60 ? '...' : '') + '"');
 
   try {
     await chrome.runtime.sendMessage({
       action: 'chat',
       backend: state.backend,
-      message: text
+      message: text,
+      requestId: thisRequestId
     });
   } catch (err) {
     finishStreaming();
     appendError(`Failed to send: ${err.message}`);
+    appendDebug('app', 'Send failed: ' + err.message, 'err');
   }
 }
 
@@ -199,6 +437,8 @@ function finishStreaming() {
   inputEl.disabled = false;
   inputEl.focus();
   showTyping(false);
+  state.mode = 'display';
+  updateStatusLine('display');
 }
 
 function appendError(errMsg) {
@@ -223,4 +463,68 @@ function clearEmptyState() {
 function scrollToBottom() {
   const area = $('#chat-area');
   area.scrollTop = area.scrollHeight;
+}
+
+// ---- Test button ----
+async function runTestPing() {
+  testBtn.disabled = true;
+  testBtn.textContent = '...';
+
+  appendDebug('app', 'Pinging ' + state.backend + '...');
+
+  try {
+    const result = await chrome.runtime.sendMessage({ action: 'ping', backend: state.backend });
+
+    if (result.error) {
+      appendDebug('app', 'Ping FAILED: ' + result.error, 'err');
+      renderPingResult(null, result.error);
+    } else {
+      const p = result.page || {};
+      appendDebug('app', 'Ping OK: ' + p.url + ' session=' + (p.sessionId || 'none') + ' md=' + p.markdownCount);
+      renderPingResult(result, null);
+    }
+  } catch (err) {
+    appendDebug('app', 'Ping error: ' + err.message, 'err');
+    renderPingResult(null, err.message);
+  } finally {
+    testBtn.disabled = false;
+    testBtn.textContent = 'Test';
+  }
+}
+
+function renderPingResult(result, error) {
+  clearEmptyState();
+
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'ping-result';
+
+  if (error) {
+    msgDiv.innerHTML = `
+      <div class="ping-header error">Connection Failed</div>
+      <div class="ping-body">${escapeHtml(error)}</div>
+    `;
+  } else {
+    const p = result.page || {};
+    msgDiv.innerHTML = `
+      <div class="ping-header ok">Page Connected</div>
+      <table class="ping-table">
+        <tr><td>Tab</td><td>${escapeHtml(result.tabTitle || '')} (id=${result.tabId})</td></tr>
+        <tr><td>URL</td><td>${escapeHtml(p.url || '')}</td></tr>
+        <tr><td>Session</td><td>${p.hasChatSession ? escapeHtml(p.sessionId || '') : 'None'}</td></tr>
+        <tr><td>Markdown</td><td>${p.markdownCount || 0}</td></tr>
+        <tr><td>Input</td><td>${p.inputReady ? 'Ready' : 'Not found'}</td></tr>
+        <tr><td>SSE</td><td>${p.sseInterceptorActive ? 'Active' : 'Not active'}</td></tr>
+        ${result.injected ? '<tr><td>Note</td><td>Content script freshly injected</td></tr>' : ''}
+      </table>
+    `;
+  }
+
+  messagesEl.appendChild(msgDiv);
+  scrollToBottom();
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }

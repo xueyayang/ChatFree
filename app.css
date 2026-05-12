@@ -20,6 +20,13 @@ body {
   height: 100vh;
 }
 
+/* ---- Main area (chat + debug sidebar) ---- */
+#main-area {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
 /* ---- Header ---- */
 #header {
   display: flex;
@@ -61,6 +68,31 @@ body {
   border-color: #539bf5;
 }
 
+#debug-toggle {
+  width: 36px;
+  height: 28px;
+  border: 1px solid #3a3f4b;
+  border-radius: 6px;
+  background: #161b22;
+  color: #99a1b3;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#debug-toggle:hover {
+  border-color: #539bf5;
+  color: #e1e5eb;
+}
+
+#debug-toggle.active {
+  background: #2d5a3d;
+  border-color: #36854d;
+  color: #7ee787;
+}
+
 #status-bar {
   display: flex;
   align-items: center;
@@ -88,6 +120,12 @@ body {
   box-shadow: 0 0 6px rgba(229, 83, 75, 0.5);
 }
 
+#status-dot.waiting {
+  background: #e5a853;
+  box-shadow: 0 0 6px rgba(229, 168, 83, 0.5);
+  animation: pulse 1.4s infinite;
+}
+
 /* ---- Chat Area ---- */
 #chat-area {
   flex: 1;
@@ -96,6 +134,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 #chat-area::-webkit-scrollbar {
@@ -408,6 +447,119 @@ body {
   cursor: not-allowed;
 }
 
+#test-btn {
+  padding: 0 10px;
+  height: 36px;
+  border: 1px solid #3a3f4b;
+  border-radius: 10px;
+  background: #161b22;
+  color: #99a1b3;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+#test-btn:hover:not(:disabled) {
+  border-color: #539bf5;
+  color: #e1e5eb;
+}
+
+#test-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#sync-btn {
+  padding: 0 10px;
+  height: 36px;
+  border: 1px solid #36854d;
+  border-radius: 10px;
+  background: #2d5a3d;
+  color: #7ee787;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+#sync-btn:hover:not(:disabled) {
+  background: #36854d;
+}
+
+#sync-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---- Ping Result Card ---- */
+.ping-result {
+  align-self: center;
+  max-width: 380px;
+  width: 100%;
+  margin: 12px 0;
+  border: 1px solid #2d323c;
+  border-radius: 10px;
+  background: #21262d;
+  overflow: hidden;
+  animation: fadeIn 0.2s ease;
+}
+
+.ping-header {
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 1px solid #2d323c;
+}
+
+.ping-header.ok {
+  color: #7ee787;
+  background: rgba(46, 160, 67, 0.1);
+}
+
+.ping-header.warn {
+  color: #e5a853;
+  background: rgba(229, 168, 83, 0.1);
+}
+
+.ping-header.error {
+  color: #e5534b;
+  background: rgba(229, 83, 75, 0.1);
+}
+
+.ping-body {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #e5534b;
+}
+
+.ping-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.ping-table td {
+  padding: 5px 14px;
+  border-bottom: 1px solid #1a1d23;
+  vertical-align: top;
+}
+
+.ping-table td:first-child {
+  color: #555d6b;
+  width: 90px;
+  flex-shrink: 0;
+}
+
+.ping-table td:last-child {
+  color: #c9d1d9;
+  word-break: break-all;
+}
+
 /* ---- Login Hint Overlay ---- */
 .login-hint {
   display: flex;
@@ -433,4 +585,138 @@ body {
 
 .login-hint a:hover {
   text-decoration: underline;
+}
+
+/* ---- Debug Sidebar ---- */
+#debug-panel {
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #161b22;
+  border-left: 1px solid #2d323c;
+  overflow: hidden;
+}
+
+#debug-panel.hidden {
+  display: none;
+}
+
+#debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2d323c;
+  flex-shrink: 0;
+}
+
+#debug-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #99a1b3;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+#debug-clear {
+  padding: 2px 8px;
+  border: 1px solid #3a3f4b;
+  border-radius: 4px;
+  background: transparent;
+  color: #99a1b3;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#debug-clear:hover {
+  border-color: #e5534b;
+  color: #e5534b;
+}
+
+#debug-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+#debug-log::-webkit-scrollbar {
+  width: 4px;
+}
+
+#debug-log::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#debug-log::-webkit-scrollbar-thumb {
+  background: #2d323c;
+  border-radius: 2px;
+}
+
+.debug-entry {
+  padding: 3px 12px;
+  border-bottom: 1px solid #1a1d23;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.debug-entry:first-child {
+  border-top: none;
+}
+
+.debug-time {
+  color: #555d6b;
+  flex-shrink: 0;
+  font-size: 10px;
+}
+
+.debug-source {
+  flex-shrink: 0;
+  font-weight: 600;
+  font-size: 9px;
+  padding: 0 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+
+.debug-source.bg {
+  background: #2d3b4a;
+  color: #7eaed3;
+}
+
+.debug-source.cs {
+  background: #2d3a2d;
+  color: #7ee787;
+}
+
+.debug-source.app {
+  background: #3a2d4a;
+  color: #b392f0;
+}
+
+.debug-msg {
+  color: #c9d1d9;
+  word-break: break-word;
+}
+
+.debug-entry.warn .debug-msg {
+  color: #e5a853;
+}
+
+.debug-entry.err .debug-msg {
+  color: #e5534b;
+}
+
+.debug-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: #3a3f4b;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }

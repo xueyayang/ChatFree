@@ -26,13 +26,23 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
+  if (msg.action === 'ping') {
+    pingContentScript(msg.backend).then(result => sendResponse(result));
+    return true;
+  }
+
+  if (msg.action === 'sync') {
+    syncContentScript(msg.backend).then(result => sendResponse(result));
+    return true;
+  }
+
   if (msg.action === 'chat') {
-    forwardChatToContentScript(msg.message, msg.backend);
+    forwardChatToContentScript(msg.message, msg.backend, msg.requestId);
     return false;
   }
 
-  // Messages FROM content script (stream events) — forward to app page
-  if (msg.type === 'chunk' || msg.type === 'done' || msg.type === 'error') {
+  // Messages FROM content script (stream events & debug) — forward to app page
+  if (msg.type === 'chunk' || msg.type === 'done' || msg.type === 'error' || msg.type === 'debug') {
     safeSend(msg);
     return false;
   }
@@ -48,8 +58,11 @@ async function checkLogin() {
       c.name.includes('token') ||
       (c.value && c.value.startsWith('eyJ'))
     );
+    debug('bg', 'DeepSeek login check: ' + (hasSession ? 'connected' : 'disconnected') +
+      ' (' + cookies.length + ' cookies)');
     return { loggedIn: hasSession };
   } catch (e) {
+    debug('bg', 'DeepSeek login check failed: ' + e.message, 'err');
     return { loggedIn: false };
   }
 }
@@ -63,45 +76,139 @@ async function checkChatGPTLogin() {
       c.name === 'oai-client-id' ||
       (c.name.includes('session') && c.value && c.value.length > 20)
     );
+    debug('bg', 'ChatGPT login check: ' + (hasSession ? 'connected' : 'disconnected') +
+      ' (' + cookies.length + ' cookies)');
     return { loggedIn: hasSession };
   } catch (e) {
+    debug('bg', 'ChatGPT login check failed: ' + e.message, 'err');
     return { loggedIn: false };
   }
 }
 
-// ---- Forward chat to content script ----
-async function forwardChatToContentScript(message, backend) {
+// ---- Ping content script for diagnostics ----
+async function pingContentScript(backend) {
   const cfg = BACKENDS[backend];
-  if (!cfg) {
-    safeSend({ type: 'error', error: `Backend "${backend}" not supported` });
-    return;
-  }
+  if (!cfg) return { error: `Backend "${backend}" not supported` };
 
   try {
     const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
     if (tabs.length === 0) {
-      safeSend({ type: 'error', error: `No ${backend} tab open. Visit ${cfg.base} first.` });
-      return;
+      return { error: `No ${backend} tab open`, hint: `Visit ${cfg.base} first` };
     }
 
-    const tabId = tabs[0].id;
-    await chrome.tabs.sendMessage(tabId, { action: 'chat', message });
+    const result = await chrome.tabs.sendMessage(tabs[0].id, { action: 'ping' });
+    return { tabId: tabs[0].id, tabTitle: tabs[0].title, page: result };
   } catch (err) {
-    // If content script hasn't loaded yet, try injecting it
+    // Content script not loaded — try injecting then ping
     if (err.message.includes('Could not establish connection') || err.message.includes('receiving end does not exist')) {
       try {
         const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
+        if (tabs.length === 0) {
+          return { error: `No ${backend} tab open` };
+        }
+
         const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : 'content.js';
         await chrome.scripting.executeScript({
           target: { tabId: tabs[0].id },
           files: [scriptFile]
         });
-        await chrome.tabs.sendMessage(tabs[0].id, { action: 'chat', message });
+
+        const result = await chrome.tabs.sendMessage(tabs[0].id, { action: 'ping' });
+        return { tabId: tabs[0].id, tabTitle: tabs[0].title, page: result, injected: true };
       } catch (e2) {
-        safeSend({ type: 'error', error: `Failed to connect: ${e2.message}` });
+        return { error: e2.message };
+      }
+    }
+    return { error: err.message };
+  }
+}
+
+// ---- Sync conversation state from content script ----
+async function syncContentScript(backend) {
+  const cfg = BACKENDS[backend];
+  if (!cfg) return { error: `Backend "${backend}" not supported` };
+
+  try {
+    const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
+    if (tabs.length === 0) return { error: `No ${backend} tab open` };
+
+    const pageState = await chrome.tabs.sendMessage(tabs[0].id, { action: 'sync' });
+    return { tabId: tabs[0].id, page: pageState };
+  } catch (err) {
+    if (err.message.includes('Could not establish connection') || err.message.includes('receiving end does not exist')) {
+      try {
+        const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
+        if (tabs.length === 0) return { error: `No ${backend} tab open` };
+
+        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : 'content.js';
+        await chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          files: [scriptFile]
+        });
+
+        const pageState = await chrome.tabs.sendMessage(tabs[0].id, { action: 'sync' });
+        return { tabId: tabs[0].id, page: pageState, injected: true };
+      } catch (e2) {
+        return { error: e2.message };
+      }
+    }
+    return { error: err.message };
+  }
+}
+
+// ---- Forward chat to content script ----
+async function forwardChatToContentScript(message, backend, requestId) {
+  const cfg = BACKENDS[backend];
+  if (!cfg) {
+    const errMsg = `Backend "${backend}" not supported`;
+    safeSend({ type: 'error', error: errMsg, requestId });
+    debug('bg', errMsg, 'err');
+    return;
+  }
+
+  debug('bg', `Querying tabs for ${cfg.base}/*`);
+
+  try {
+    const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
+    debug('bg', `Found ${tabs.length} tab(s) for ${backend}: ` +
+      tabs.map(t => `id=${t.id} title="${(t.title || '').slice(0, 40)}"`).join(', '));
+
+    if (tabs.length === 0) {
+      const errMsg = `No ${backend} tab open. Visit ${cfg.base} first.`;
+      safeSend({ type: 'error', error: errMsg, requestId });
+      debug('bg', errMsg, 'err');
+      return;
+    }
+
+    const tabId = tabs[0].id;
+    debug('bg', `Sending chat message to tab ${tabId}`);
+    await chrome.tabs.sendMessage(tabId, { action: 'chat', message, requestId });
+    debug('bg', `Message delivered to tab ${tabId}`);
+  } catch (err) {
+    debug('bg', `Send attempt failed: ${err.message}`, 'warn');
+
+    // If content script hasn't loaded yet, try injecting it
+    if (err.message.includes('Could not establish connection') || err.message.includes('receiving end does not exist')) {
+      try {
+        const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
+        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : 'content.js';
+        debug('bg', `Injecting ${scriptFile} into tab ${tabs[0].id}`);
+        await chrome.scripting.executeScript({
+          target: { tabId: tabs[0].id },
+          files: [scriptFile]
+        });
+        debug('bg', `Injection OK, re-sending message to tab ${tabs[0].id}`);
+        await chrome.tabs.sendMessage(tabs[0].id, { action: 'chat', message, requestId });
+        debug('bg', `Message delivered after injection to tab ${tabs[0].id}`);
+      } catch (e2) {
+        const errMsg = `Failed to connect: ${e2.message}`;
+        safeSend({ type: 'error', error: errMsg, requestId });
+        debug('bg', errMsg, 'err');
       }
     } else {
-      safeSend({ type: 'error', error: err.message });
+      const errMsg = err.message;
+      safeSend({ type: 'error', error: errMsg, requestId });
+      debug('bg', errMsg, 'err');
     }
   }
 }
@@ -113,4 +220,8 @@ function safeSend(msg) {
   } catch {
     // App page might be closed; ignore
   }
+}
+
+function debug(source, message, level) {
+  safeSend({ type: 'debug', source, message, level: level || null });
 }
