@@ -37,6 +37,7 @@ export function createEmbedSyncModule({ state, dom, utils }) {
       _iframe = null;
     }
     _ready = false;
+    dom.containerEl.classList.add('hidden');
   }
 
   async function sync() {
@@ -98,6 +99,7 @@ export function createEmbedSyncModule({ state, dom, utils }) {
     _iframe.setAttribute('allow', 'clipboard-write');
 
     dom.containerEl.appendChild(_iframe);
+    dom.containerEl.classList.remove('hidden');
     appendDebug('app', 'Embed iframe created: ' + url);
 
     // Monitor iframe load

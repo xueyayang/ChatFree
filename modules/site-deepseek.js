@@ -1,28 +1,36 @@
 // modules/site-deepseek.js
 // Site adapter: DeepSeek (chat.deepseek.com)
-// Finds and hides the native input toolbar when embedded in an iframe.
+// Provides all site-specific behaviour for the shared content-core.
 //
-// Interface (set on window.__ChatFreeSiteAdapter):
-//   findInputContainer(textareaEl) → { el: HTMLElement, method: string } | null
-//
-// This is the swappable part — each target site provides its own adapter
-// with the same interface.  The embedding infrastructure in content.js
-// calls findInputContainer to locate the input chrome that should be
-// moved off-screen.
+// Interface: window.__ChatFreeSiteAdapter
+//   name: string
+//   inputSelectors: string[]
+//   findInputContainer(textareaEl) → { el, method } | null
+//   matchSSEUrl(url): boolean
+//   extractSSEText(data): { text: string, enteredResponse: boolean }
 
 (function() {
   window.__ChatFreeSiteAdapter = {
     name: 'deepseek',
 
-    // Given a textarea element (the chat input), walk up the DOM to find
-    // the ancestor container that represents the entire bottom input bar.
-    // Returns { el, method } for logging, or null if nothing found
-    // (caller falls back to hiding the textarea itself).
+    // -- Input selectors (tried in order) --
+    inputSelectors: [
+      'textarea[placeholder*="消息" i]',
+      'textarea[placeholder*="问题" i]',
+      'textarea[placeholder*="message" i]',
+      '#chat-input',
+      '[role="textbox"]',
+      'textarea'
+    ],
+
+    // -- Find the input container to hide --
+    // Walk up from the textarea to find the entire bottom input bar
+    // (toolbar + textarea).  Returns { el, method } for logging, or null
+    // to fall back to hiding the textarea itself.
     findInputContainer(textareaEl) {
-      // Primary: find the ancestor that also contains DeepSeek's toolbar
-      // buttons.  DeepSeek uses stable design-system classes for these
-      // (ds-toggle-button, ds-icon-button, ds-atom-button — the "ds-"
-      // prefix is from DeepSeek's component library, not CSS-modules hash).
+      // Primary: ancestor containing DeepSeek's design-system toolbar
+      // buttons.  The "ds-" prefix is from DeepSeek's component library,
+      // not CSS-modules hashes — stable across deploys.
       let el = textareaEl;
       for (let i = 0; i < 10; i++) {
         el = el.parentElement;
@@ -34,7 +42,7 @@
         }
       }
 
-      // Fallback: geometry — container pinned to bottom of viewport.
+      // Fallback: geometry — container pinned to viewport bottom.
       el = textareaEl;
       for (let i = 0; i < 10; i++) {
         el = el.parentElement;
@@ -47,6 +55,33 @@
       }
 
       return null;
+    },
+
+    // -- SSE: URL matching --
+    matchSSEUrl(url) {
+      return url.includes('/chat/completion');
+    },
+
+    // -- SSE: text extraction --
+    // DeepSeek SSE format: { o: "APPEND", v: [{ type: "RESPONSE", content: "..." }] }
+    extractSSEText(data) {
+      if (data.o === 'APPEND' && Array.isArray(data.v)) {
+        const responseText = data.v
+          .filter(f => f.type === 'RESPONSE')
+          .map(f => f.content || '').join('');
+        return {
+          text: responseText,
+          enteredResponse: data.v.some(f => f.type === 'RESPONSE')
+        };
+      }
+      if (data.o === 'APPEND' && typeof data.v === 'string' &&
+          data.p && data.p.endsWith('/content')) {
+        return { text: data.v, enteredResponse: false };
+      }
+      if (data.v && typeof data.v === 'string') {
+        return { text: data.v, enteredResponse: false };
+      }
+      return { text: '', enteredResponse: false };
     }
   };
 })();

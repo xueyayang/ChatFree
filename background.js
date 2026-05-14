@@ -1,5 +1,5 @@
 // background.js - ChatFree service worker
-// Relays messages between app page and content scripts.
+// Handles login checks and extension lifecycle.
 
 const BACKENDS = {
   deepseek: {
@@ -23,7 +23,6 @@ chrome.action.onClicked.addListener(() => {
 
 // ---- Message dispatcher ----
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  // Messages FROM app page (commands)
   if (msg.action === 'checkLogin') {
     const backend = BACKENDS[msg.backend] || BACKENDS.deepseek;
     backend.checkLogin().then(result => sendResponse(result));
@@ -35,18 +34,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true;
   }
 
-  if (msg.action === 'sync') {
-    syncContentScript(msg.backend).then(result => sendResponse(result));
-    return true;
-  }
-
-  if (msg.action === 'chat') {
-    forwardChatToContentScript(msg.message, msg.backend, msg.requestId);
-    return false;
-  }
-
-  // Messages FROM content script (stream events & debug) — forward to app page
-  if (msg.type === 'chunk' || msg.type === 'done' || msg.type === 'error' || msg.type === 'debug') {
+  // Forward debug messages from content scripts to app page
+  if (msg.type === 'debug') {
     safeSend(msg);
     return false;
   }
@@ -120,18 +109,21 @@ async function pingContentScript(backend) {
       return { error: `No ${backend} tab open`, hint: `Visit ${cfg.base} first` };
     }
 
+    const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js'
+                     : backend === 'doubao' ? 'content_doubao.js'
+                     : 'content.js';
     const result = await chrome.tabs.sendMessage(tabs[0].id, { action: 'ping' });
     return { tabId: tabs[0].id, tabTitle: tabs[0].title, page: result };
   } catch (err) {
-    // Content script not loaded — try injecting then ping
-    if (err.message.includes('Could not establish connection') || err.message.includes('receiving end does not exist')) {
+    if (err.message.includes('Could not establish connection') ||
+        err.message.includes('receiving end does not exist')) {
       try {
         const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
-        if (tabs.length === 0) {
-          return { error: `No ${backend} tab open` };
-        }
+        if (tabs.length === 0) return { error: `No ${backend} tab open` };
 
-        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : backend === 'doubao' ? 'content_doubao.js' : 'content.js';
+        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js'
+                         : backend === 'doubao' ? 'content_doubao.js'
+                         : 'content.js';
         await chrome.scripting.executeScript({
           target: { tabId: tabs[0].id },
           files: [scriptFile]
@@ -144,96 +136,6 @@ async function pingContentScript(backend) {
       }
     }
     return { error: err.message };
-  }
-}
-
-// ---- Sync conversation state from content script ----
-async function syncContentScript(backend) {
-  const cfg = BACKENDS[backend];
-  if (!cfg) return { error: `Backend "${backend}" not supported` };
-
-  try {
-    const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
-    if (tabs.length === 0) return { error: `No ${backend} tab open` };
-
-    const pageState = await chrome.tabs.sendMessage(tabs[0].id, { action: 'sync' });
-    return { tabId: tabs[0].id, page: pageState };
-  } catch (err) {
-    if (err.message.includes('Could not establish connection') || err.message.includes('receiving end does not exist')) {
-      try {
-        const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
-        if (tabs.length === 0) return { error: `No ${backend} tab open` };
-
-        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : backend === 'doubao' ? 'content_doubao.js' : 'content.js';
-        await chrome.scripting.executeScript({
-          target: { tabId: tabs[0].id },
-          files: [scriptFile]
-        });
-
-        const pageState = await chrome.tabs.sendMessage(tabs[0].id, { action: 'sync' });
-        return { tabId: tabs[0].id, page: pageState, injected: true };
-      } catch (e2) {
-        return { error: e2.message };
-      }
-    }
-    return { error: err.message };
-  }
-}
-
-// ---- Forward chat to content script ----
-async function forwardChatToContentScript(message, backend, requestId) {
-  const cfg = BACKENDS[backend];
-  if (!cfg) {
-    const errMsg = `Backend "${backend}" not supported`;
-    safeSend({ type: 'error', error: errMsg, requestId });
-    debug('bg', errMsg, 'err');
-    return;
-  }
-
-  debug('bg', `Querying tabs for ${cfg.base}/*`);
-
-  try {
-    const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
-    debug('bg', `Found ${tabs.length} tab(s) for ${backend}: ` +
-      tabs.map(t => `id=${t.id} title="${(t.title || '').slice(0, 40)}"`).join(', '));
-
-    if (tabs.length === 0) {
-      const errMsg = `No ${backend} tab open. Visit ${cfg.base} first.`;
-      safeSend({ type: 'error', error: errMsg, requestId });
-      debug('bg', errMsg, 'err');
-      return;
-    }
-
-    const tabId = tabs[0].id;
-    debug('bg', `Sending chat message to tab ${tabId}`);
-    await chrome.tabs.sendMessage(tabId, { action: 'chat', message, requestId });
-    debug('bg', `Message delivered to tab ${tabId}`);
-  } catch (err) {
-    debug('bg', `Send attempt failed: ${err.message}`, 'warn');
-
-    // If content script hasn't loaded yet, try injecting it
-    if (err.message.includes('Could not establish connection') || err.message.includes('receiving end does not exist')) {
-      try {
-        const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
-        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : backend === 'doubao' ? 'content_doubao.js' : 'content.js';
-        debug('bg', `Injecting ${scriptFile} into tab ${tabs[0].id}`);
-        await chrome.scripting.executeScript({
-          target: { tabId: tabs[0].id },
-          files: [scriptFile]
-        });
-        debug('bg', `Injection OK, re-sending message to tab ${tabs[0].id}`);
-        await chrome.tabs.sendMessage(tabs[0].id, { action: 'chat', message, requestId });
-        debug('bg', `Message delivered after injection to tab ${tabs[0].id}`);
-      } catch (e2) {
-        const errMsg = `Failed to connect: ${e2.message}`;
-        safeSend({ type: 'error', error: errMsg, requestId });
-        debug('bg', errMsg, 'err');
-      }
-    } else {
-      const errMsg = err.message;
-      safeSend({ type: 'error', error: errMsg, requestId });
-      debug('bg', errMsg, 'err');
-    }
   }
 }
 

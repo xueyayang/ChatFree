@@ -1,48 +1,79 @@
 // modules/site-doubao.js
 // Site adapter: Doubao / 豆包 (www.doubao.com)
-// Finds and hides the native input toolbar when embedded in an iframe.
+// Provides all site-specific behaviour for the shared content-core.
 //
-// Interface (set on window.__ChatFreeSiteAdapter):
-//   findInputContainer(textareaEl) → { el: HTMLElement, method: string } | null
+// Interface: window.__ChatFreeSiteAdapter
+//   name: string
+//   inputSelectors: string[]
+//   findInputContainer(textareaEl) → { el, method } | null
+//   matchSSEUrl(url): boolean
+//   extractSSEText(data): { text: string, enteredResponse: boolean }
 
 (function() {
   window.__ChatFreeSiteAdapter = {
     name: 'doubao',
 
-    // Given a textarea element (the chat input), walk up the DOM to find
-    // the ancestor that represents the entire bottom input bar.
+    // -- Needs visible input for trySend button detection --
+    needsVisibleInput: true,
+
+    // -- Input selectors (tried in order) --
+    inputSelectors: [
+      'textarea[placeholder*="发消息" i]',
+      'textarea[placeholder*="消息" i]',
+      'textarea[placeholder*="message" i]',
+      '#chat-input',
+      '[role="textbox"]',
+      'textarea'
+    ],
+
+    // -- Find the input container to hide --
+    // Only hide the textarea itself, NOT the toolbar ancestor that contains
+    // send buttons — those must stay reachable for trySend to click them.
     findInputContainer(textareaEl) {
-      // Strategy 1: find the ancestor that has BOTH the textarea AND a
-      // likely send button (button with no visible text = icon button).
-      let el = textareaEl;
-      for (let i = 0; i < 10; i++) {
-        el = el.parentElement;
-        if (!el || el === document.body || el === document.documentElement) break;
+      return { el: textareaEl, method: 'textarea(self)' };
+    },
 
-        const buttons = el.querySelectorAll('button');
-        for (const btn of buttons) {
-          // Icon-only submit button — no text content, usually contains SVG
-          if (!btn.offsetParent) continue;
-          const text = (btn.textContent || '').trim();
-          if (text === '' && btn.querySelector('svg')) {
-            return { el: el, method: 'struct(icon-btn)' };
-          }
-        }
+    // -- SSE: URL matching --
+    // ByteDance / Doubao uses multiple streaming API patterns.
+    matchSSEUrl(url) {
+      return url.includes('/api/') ||
+             url.includes('/chat/') ||
+             url.includes('/stream') ||
+             url.includes('doubao') ||
+             url.includes('ark');
+    },
+
+    // -- SSE: text extraction --
+    // Tries multiple known SSE data formats.
+    extractSSEText(data) {
+      // DeepSeek-style: { o: 'APPEND', v: [...] }
+      if (data.o === 'APPEND' && Array.isArray(data.v)) {
+        const text = data.v
+          .filter(f => f.type === 'RESPONSE')
+          .map(f => f.content || '').join('');
+        return { text, enteredResponse: text.length > 0 };
       }
-
-      // Strategy 2: geometry — container pinned to viewport bottom.
-      el = textareaEl;
-      for (let i = 0; i < 10; i++) {
-        el = el.parentElement;
-        if (!el || el === document.body || el === document.documentElement) break;
-        const rect = el.getBoundingClientRect();
-        if (rect.bottom >= window.innerHeight - 30 &&
-            rect.height < window.innerHeight * 0.5) {
-          return { el: el, method: 'geo(bottom)' };
-        }
+      if (data.o === 'APPEND' && typeof data.v === 'string') {
+        return { text: data.v, enteredResponse: true };
       }
-
-      return null;
+      // OpenAI-style: { choices: [{ delta: { content: '...' } }] }
+      if (data.choices && Array.isArray(data.choices)) {
+        const text = data.choices
+          .map(c => (c.delta && c.delta.content) || c.content || '').join('');
+        return { text, enteredResponse: text.length > 0 };
+      }
+      // Generic: various content fields
+      if (data.content && typeof data.content === 'string')
+        return { text: data.content, enteredResponse: true };
+      if (data.text && typeof data.text === 'string')
+        return { text: data.text, enteredResponse: true };
+      if (data.message && typeof data.message === 'string')
+        return { text: data.message, enteredResponse: true };
+      if (data.data && typeof data.data === 'string')
+        return { text: data.data, enteredResponse: true };
+      if (typeof data.v === 'string')
+        return { text: data.v, enteredResponse: true };
+      return { text: '', enteredResponse: false };
     }
   };
 })();

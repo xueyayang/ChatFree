@@ -32,7 +32,7 @@
   "content_scripts": [
     {
       "matches": ["https://chat.deepseek.com/*"],
-      "js": ["modules/site-deepseek.js", "content.js"],
+      "js": ["modules/site-deepseek.js", "modules/content-core.js", "content.js"],
       "run_at": "document_idle",
       "all_frames": true
     },
@@ -44,7 +44,7 @@
     },
     {
       "matches": ["https://www.doubao.com/*"],
-      "js": ["modules/site-doubao.js", "content_doubao.js"],
+      "js": ["modules/site-doubao.js", "modules/content-core.js", "content_doubao.js"],
       "run_at": "document_idle",
       "all_frames": true
     }

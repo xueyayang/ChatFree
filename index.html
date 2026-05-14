@@ -5,17 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ChatFree</title>
   <link rel="stylesheet" href="app.css">
-  <link rel="stylesheet" href="vendor/highlight-theme.css">
 </head>
 <body>
   <div id="app">
     <header id="header">
       <h1 id="title">ChatFree</h1>
       <div id="header-controls">
-        <select id="module-select" title="Sync mode">
-          <option value="embed">Embed</option>
-          <option value="text">Text Sync</option>
-        </select>
         <select id="backend-select">
           <option value="deepseek">DeepSeek</option>
           <option value="chatgpt">ChatGPT</option>
@@ -30,18 +25,7 @@
     </header>
 
     <div id="main-area">
-      <!-- Embed sync: iframe container (first so ~ selector works) -->
       <div id="embed-area" class="hidden"></div>
-
-      <!-- Text sync: chat messages area -->
-      <div id="chat-area">
-        <div id="messages"></div>
-        <div id="typing-indicator" class="hidden">
-          <span class="dot"></span>
-          <span class="dot"></span>
-          <span class="dot"></span>
-        </div>
-      </div>
 
       <aside id="debug-panel" class="hidden">
         <div id="debug-header">
@@ -55,13 +39,11 @@
     <footer id="input-area">
       <textarea id="message-input" placeholder="Type a message..." rows="2" disabled></textarea>
       <button id="send-btn" disabled>Send</button>
-      <button id="sync-btn" title="Sync/Reload the backend view">Sync</button>
+      <button id="sync-btn" title="Reload iframe">Sync</button>
       <button id="test-btn" title="Test connection">Test</button>
     </footer>
   </div>
 
-  <script src="vendor/marked.umd.js"></script>
-  <script src="vendor/highlight.min.js"></script>
   <script type="module" src="app.js"></script>
 </body>
 </html>
