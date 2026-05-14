@@ -73,8 +73,8 @@
 
   function findInput(checkVisible) {
     if (checkVisible === undefined) checkVisible = true;
-    // In embed mode, use cached input if available (it was hidden so offsetParent is null)
-    if (!checkVisible && _embeddedInput) return _embeddedInput;
+    // Always search for fresh DOM elements first — cached ref may be
+    // detached after SPA navigation replaces the page content.
     const selectors = [
       'textarea[placeholder*="消息" i]',
       'textarea[placeholder*="问题" i]',
@@ -86,8 +86,15 @@
     for (const sel of selectors) {
       try {
         const el = document.querySelector(sel);
-        if (el && (!checkVisible || el.offsetParent !== null)) return el;
+        if (el && (!checkVisible || el.offsetParent !== null)) {
+          if (!checkVisible) _embeddedInput = el;
+          return el;
+        }
       } catch {}
+    }
+    // Fallback: cached element only if still attached to the live DOM
+    if (!checkVisible && _embeddedInput && document.contains(_embeddedInput)) {
+      return _embeddedInput;
     }
     return null;
   }
@@ -329,46 +336,50 @@
     dbg('Content script loaded in embed mode [' + window._chatfree_injection_id + ']');
 
     function hideNativeInput() {
-      const input = findInput(false); // don't check offsetParent
+      const input = findInput(false);
       if (!input) {
-        dbg('Embed: input not found yet, retrying...', 'warn');
         setTimeout(hideNativeInput, 500);
         return;
       }
 
-      _embeddedInput = input; // cache before hiding
+      _embeddedInput = input;
 
-      // Walk up to find the input container/footer and hide it
-      let el = input;
-      for (let i = 0; i < 8; i++) {
-        el = el.parentElement;
-        if (!el || el === document.body) break;
-        const classes = (el.className && typeof el.className === 'string') ? el.className : '';
-        if (classes.includes('footer') || classes.includes('input') ||
-            classes.includes('bottom') || classes.includes('toolbar') ||
-            (classes.includes('chat') && classes.includes('area'))) {
-          el.style.display = 'none';
-          dbg('Embed: hid input container (' + classes.slice(0, 40) + ')');
-          reportReady();
-          installSSEInterceptor();
-          return;
-        }
+      // Delegate to the site adapter for container detection.
+      // The adapter is site-specific (modules/site-deepseek.js etc.)
+      // and loaded before content.js via the manifest.
+      const adapter = window.__ChatFreeSiteAdapter;
+      let { el, method } = (adapter && adapter.findInputContainer)
+        ? (adapter.findInputContainer(input) || {})
+        : {};
+
+      if (!el) {
+        el = input;
+        method = 'input(fallback)';
       }
 
-      // Fallback: hide the input element itself and nearby buttons
-      input.style.display = 'none';
-      const inputRect = input.getBoundingClientRect();
-      const buttons = document.querySelectorAll('button');
-      for (const btn of buttons) {
-        const rect = btn.getBoundingClientRect();
-        if (Math.abs(rect.bottom - inputRect.bottom) < 200 && rect.bottom > inputRect.top - 50) {
-          btn.style.display = 'none';
-        }
-      }
-      dbg('Embed: hid input element directly');
+      el.style.cssText = 'position:fixed !important;left:-9999px !important;top:-9999px !important;' +
+                         'width:1px !important;height:1px !important;overflow:hidden !important;';
+      dbg('Embed: hid ' + method + ' ' + el.tagName + '.' + (el.className || '').slice(0, 40));
       reportReady();
       installSSEInterceptor();
     }
+
+    // Re-hide the input area whenever SPA navigation replaces the DOM.
+    // DeepSeek rewrites the page after the first message (new-chat → /a/chat/…).
+    let _hideTimer = null;
+    const _domObserver = new MutationObserver(() => {
+      if (_hideTimer) clearTimeout(_hideTimer);
+      _hideTimer = setTimeout(() => {
+        _hideTimer = null;
+        // Check if an unhidden textarea appeared (SPA replaced the old one)
+        const visibleInput = document.querySelector('textarea');
+        if (visibleInput && visibleInput.offsetParent !== null && document.contains(visibleInput)) {
+          dbg('Embed: new visible input detected after DOM change, re-hiding');
+          hideNativeInput();
+        }
+      }, 300);
+    });
+    _domObserver.observe(document.body, { childList: true, subtree: true });
 
     // Listen for forwarded input from the parent ChatFree page
     window.addEventListener('message', async (event) => {
@@ -377,6 +388,10 @@
       if (event.data.type === 'chatfree-forward-input') {
         const text = (event.data.text || '').trim();
         if (!text) return;
+
+        // Re-hide before sending — the MutationObserver may not have fired yet,
+        // and a visible input would have the wrong layout position.
+        hideNativeInput();
 
         dbg('Embed: received forwarded input: "' + text.slice(0, 60) + (text.length > 60 ? '...' : '') + '"');
 
@@ -394,12 +409,7 @@
       }
 
       if (event.data.type === 'chatfree-ping') {
-        const input = findInput(false);
-        if (input) {
-          hideNativeInput();
-        } else {
-          dbg('Embed: ping received but input not found', 'warn');
-        }
+        hideNativeInput();
       }
     });
 
