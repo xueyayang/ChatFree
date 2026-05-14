@@ -28,5 +28,20 @@
       "urlFilter": "*://chatgpt.com/*",
       "resourceTypes": ["sub_frame"]
     }
+  },
+  {
+    "id": 3,
+    "priority": 1,
+    "action": {
+      "type": "modifyHeaders",
+      "responseHeaders": [
+        { "header": "x-frame-options", "operation": "remove" },
+        { "header": "content-security-policy", "operation": "remove" }
+      ]
+    },
+    "condition": {
+      "urlFilter": "*://www.doubao.com/*",
+      "resourceTypes": ["sub_frame"]
+    }
   }
 ]

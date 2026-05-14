@@ -6,7 +6,8 @@
   "permissions": ["cookies", "storage", "scripting", "tabs", "declarativeNetRequestWithHostAccess"],
   "host_permissions": [
     "https://chat.deepseek.com/*",
-    "https://chatgpt.com/*"
+    "https://chatgpt.com/*",
+    "https://www.doubao.com/*"
   ],
   "declarative_net_request": {
     "rule_resources": [
@@ -38,6 +39,12 @@
     {
       "matches": ["https://chatgpt.com/*"],
       "js": ["content_chatgpt.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": ["https://www.doubao.com/*"],
+      "js": ["modules/site-doubao.js", "content_doubao.js"],
       "run_at": "document_idle",
       "all_frames": true
     }

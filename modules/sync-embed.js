@@ -19,7 +19,8 @@ export function createEmbedSyncModule({ state, dom, utils }) {
 
   const BACKEND_URLS = {
     deepseek: 'https://chat.deepseek.com/',
-    chatgpt: 'https://chatgpt.com/'
+    chatgpt: 'https://chatgpt.com/',
+    doubao: 'https://www.doubao.com/chat/'
   };
 
   // ---- Public ----

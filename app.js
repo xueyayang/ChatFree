@@ -21,8 +21,8 @@ renderer.code = function({ text, lang }) {
 markedLib.setOptions({ renderer, breaks: true, gfm: true });
 
 // ---- Backend config ----
-const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT' };
-const BACKEND_URLS = { deepseek: 'https://chat.deepseek.com', chatgpt: 'https://chatgpt.com' };
+const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT', doubao: '豆包' };
+const BACKEND_URLS = { deepseek: 'https://chat.deepseek.com', chatgpt: 'https://chatgpt.com', doubao: 'https://www.doubao.com/chat/' };
 
 // ---- Shared state ----
 const state = {

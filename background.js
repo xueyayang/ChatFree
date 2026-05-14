@@ -9,6 +9,10 @@ const BACKENDS = {
   chatgpt: {
     base: 'https://chatgpt.com',
     checkLogin: checkChatGPTLogin
+  },
+  doubao: {
+    base: 'https://www.doubao.com',
+    checkLogin: checkDoubaoLogin
   }
 };
 
@@ -85,6 +89,26 @@ async function checkChatGPTLogin() {
   }
 }
 
+async function checkDoubaoLogin() {
+  try {
+    const cookies = await chrome.cookies.getAll({ domain: 'www.doubao.com' });
+    const hasSession = cookies.some(c =>
+      c.name.includes('session') ||
+      c.name.includes('token') ||
+      c.name.includes('auth') ||
+      c.name.includes('login') ||
+      (c.name === 'passport_csrf_token') ||
+      (c.value && c.value.length > 30 && c.name.includes('sid'))
+    );
+    debug('bg', 'Doubao login check: ' + (hasSession ? 'connected' : 'disconnected') +
+      ' (' + cookies.length + ' cookies)');
+    return { loggedIn: hasSession };
+  } catch (e) {
+    debug('bg', 'Doubao login check failed: ' + e.message, 'err');
+    return { loggedIn: false };
+  }
+}
+
 // ---- Ping content script for diagnostics ----
 async function pingContentScript(backend) {
   const cfg = BACKENDS[backend];
@@ -107,7 +131,7 @@ async function pingContentScript(backend) {
           return { error: `No ${backend} tab open` };
         }
 
-        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : 'content.js';
+        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : backend === 'doubao' ? 'content_doubao.js' : 'content.js';
         await chrome.scripting.executeScript({
           target: { tabId: tabs[0].id },
           files: [scriptFile]
@@ -140,7 +164,7 @@ async function syncContentScript(backend) {
         const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
         if (tabs.length === 0) return { error: `No ${backend} tab open` };
 
-        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : 'content.js';
+        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : backend === 'doubao' ? 'content_doubao.js' : 'content.js';
         await chrome.scripting.executeScript({
           target: { tabId: tabs[0].id },
           files: [scriptFile]
@@ -191,7 +215,7 @@ async function forwardChatToContentScript(message, backend, requestId) {
     if (err.message.includes('Could not establish connection') || err.message.includes('receiving end does not exist')) {
       try {
         const tabs = await chrome.tabs.query({ url: `${cfg.base}/*` });
-        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : 'content.js';
+        const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js' : backend === 'doubao' ? 'content_doubao.js' : 'content.js';
         debug('bg', `Injecting ${scriptFile} into tab ${tabs[0].id}`);
         await chrome.scripting.executeScript({
           target: { tabId: tabs[0].id },
