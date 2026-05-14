@@ -1,13 +1,22 @@
 {
   "manifest_version": 3,
   "name": "ChatFree",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Unified chat interface for DeepSeek and ChatGPT",
-  "permissions": ["cookies", "storage", "scripting", "tabs"],
+  "permissions": ["cookies", "storage", "scripting", "tabs", "declarativeNetRequestWithHostAccess"],
   "host_permissions": [
     "https://chat.deepseek.com/*",
     "https://chatgpt.com/*"
   ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_strip_headers",
+        "enabled": true,
+        "path": "rules_headers.json"
+      }
+    ]
+  },
   "action": {
     "default_title": "ChatFree",
     "default_icon": {
@@ -23,12 +32,14 @@
     {
       "matches": ["https://chat.deepseek.com/*"],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": true
     },
     {
       "matches": ["https://chatgpt.com/*"],
       "js": ["content_chatgpt.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "icons": {

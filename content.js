@@ -1,11 +1,27 @@
 // content.js - Injected into chat.deepseek.com
-// Provides: ping (diagnostics), sync (read conversation state), chat (send message).
+// Two modes:
+//   Top-frame: provides ping, sync, chat (original behavior).
+//   Iframe (embedded in ChatFree app): hides input, accepts forwarded input
+//     via postMessage, still intercepts SSE for status reporting.
 
 (function() {
-  // Skip iframes — each frame gets its own injection but we only want the top frame
-  if (window.top !== window.self) return;
+  // Detect embed mode: window.name survives SPA navigations (most reliable),
+  // with URL hash and referrer as fallbacks.
+  let IS_EMBEDDED = false;
+  if (window.top !== window.self) {
+    try { IS_EMBEDDED = window.name === 'chatfree_embed_v1'; } catch (_) {}
+    if (!IS_EMBEDDED) {
+      try { IS_EMBEDDED = window.location.hash.includes('chatfree-embed'); } catch (_) {}
+    }
+    if (!IS_EMBEDDED) {
+      try { IS_EMBEDDED = document.referrer.startsWith('chrome-extension://'); } catch (_) {}
+    }
+  }
+
+  // Skip non-embed iframes — only run in top frame OR our own embed iframe
+  if (window.top !== window.self && !IS_EMBEDDED) return;
+
   // Guard against double injection in the same extension session.
-  // window properties reset when extension is reloaded (isolated world recreated).
   if (window._chatfree_cs_loaded) return;
   window._chatfree_cs_loaded = true;
   window._chatfree_injection_id = Math.random().toString(36).slice(2, 8);
@@ -15,408 +31,50 @@
   let currentReader = null;
   let chatInProgress = false;
 
+  const BACKEND_NAME = 'DeepSeek';
+  let _embeddedInput = null; // cached input ref for embed mode (survives hiding)
+
+  // ---- Helpers (used by both modes) ----
   function dbg(msg, level) {
-    chrome.runtime.sendMessage({ type: 'debug', source: 'cs', message: msg, level: level || null }).catch(() => {});
-  }
-
-  // ---- Message handler ----
-  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-    if (msg.action === 'ping') {
-      sendResponse(capturePageState());
-      return true;
-    }
-
-    if (msg.action === 'sync') {
-      sendResponse(syncConversation());
-      return true;
-    }
-
-    if (msg.action === 'chat') {
-      if (chatInProgress) {
-        sendResponse({ accepted: false });
-        return true;
-      }
-      const requestId = msg.requestId || 0;
-      chatInProgress = true;
-      doChatViaDOM(msg.message, requestId)
-        .catch(err => {
-          dbg('doChatViaDOM error: ' + err.message, 'err');
-          chrome.runtime.sendMessage({ type: 'error', error: err.message, requestId }).catch(() => {});
-        })
-        .finally(() => { chatInProgress = false; });
-      sendResponse({ accepted: true });
-      return true;
-    }
-  });
-
-  // ---- Page state (ping) ----
-  function capturePageState() {
-    const onChatPage = location.pathname.startsWith('/a/chat/');
-    const sessionId = onChatPage ? location.pathname.split('/').pop() : null;
-    const input = document.querySelector('textarea');
-    return {
-      url: location.href,
-      pathname: location.pathname,
-      hasChatSession: onChatPage,
-      sessionId: sessionId,
-      markdownCount: document.querySelectorAll('.ds-markdown').length,
-      inputReady: !!(input && input.offsetParent !== null),
-      sseInterceptorActive: window.fetch === window._chatfree_wrapper,
-      title: document.title
-    };
-  }
-
-  // ---- Sync conversation state (core of the new model) ----
-  function syncConversation() {
-    const chatArea = findMainChatArea();
-    const allMarkdown = [...chatArea.querySelectorAll('.ds-markdown')];
-
-    // Group .ds-markdown elements by their AI response container.
-    const aiContainers = groupByAiContainer(allMarkdown);
-    const A = aiContainers.length;
-
-    // Full HTML per AI response (for polling replacement).
-    const aiHtmls = aiContainers.map(c => {
-      const blocks = [...c.querySelectorAll('.ds-markdown')];
-      return blocks.map(b => b.innerHTML).join('');
-    }).filter(Boolean);
-
-    // Build ordered conversation: each AI response paired with its
-    // preceding user question, interleaved in DOM order.
-    const conversation = buildConversation(aiContainers, chatArea);
-    const Q = conversation.filter(m => m.role === 'user').length;
-
-    // Last markdown block in main chat — use innerHTML to preserve formatting
-    const lastMd = allMarkdown.length > 0 ? allMarkdown[allMarkdown.length - 1] : null;
-    const lastHtml = lastMd ? lastMd.innerHTML : '';
-    const lastLen = lastHtml.length;
-    const hasRegen = lastMd ? hasRegenerateButton(lastMd) : false;
-    const streaming = lastMd && lastLen > 0 && !hasRegen;
-
-    const totalPageMd = document.querySelectorAll('.ds-markdown').length;
-
-    return {
-      Q: Q,
-      A: A,
-      balanced: Q === A || Q === 0,
-      streaming: streaming,
-      lastMarkdownLength: lastLen,
-      lastMarkdownText: lastHtml,
-      hasRegenerateButton: hasRegen,
-      sessionId: location.pathname.startsWith('/a/chat/') ? location.pathname.split('/').pop() : null,
-      aiHtmls: aiHtmls,
-      conversation: conversation,
-      totalPageMarkdown: totalPageMd,
-      chatAreaMarkdown: allMarkdown.length,
-      injectionId: window._chatfree_injection_id || '?'
-    };
-  }
-
-  // Group .ds-markdown elements by their containing AI response.
-  // Multiple .ds-markdown blocks in the same AI answer share a common
-  // ancestor (the message container); this deduplicates them.
-  function groupByAiContainer(markdownEls) {
-    if (markdownEls.length === 0) return [];
-
-    // Strategy 1: use known DeepSeek message container class
-    const byClass = new Set();
-    for (const md of markdownEls) {
-      const c =
-        md.closest('[class*="ds_message"]') ||
-        md.closest('[class*="answer"]') ||
-        md.closest('[class*="response"]');
-      if (c) byClass.add(c);
-    }
-    if (byClass.size > 0) return sortEls([...byClass]);
-
-    // Strategy 2: walk up from each .ds-markdown; stop at the ancestor
-    // whose parent would include ALL chat-area .ds-markdown blocks.
-    const total = markdownEls.length;
-    const groups = new Map();
-    for (const md of markdownEls) {
-      let container = md;
-      let el = md;
-      for (let i = 0; i < 8; i++) {
-        const p = el.parentElement;
-        if (!p || p === document.body) break;
-        const n = p.querySelectorAll('.ds-markdown').length;
-        if (n > 0 && n < total) container = p;
-        if (n >= total) break;
-        el = p;
-      }
-      if (!groups.has(container)) groups.set(container, []);
-      groups.get(container).push(md);
-    }
-    return sortEls([...groups.keys()]);
-  }
-
-  // Build ordered conversation: walk AI containers in DOM order, find each
-  // one's preceding user message, and interleave.
-  function buildConversation(aiContainers, chatArea) {
-    const conversation = [];
-    const seenUserEls = new Set();
-
-    for (const ai of aiContainers) {
-      // Find the user message just before this AI response
-      const userEl = findPrecedingUserMessage(ai, chatArea);
-      if (userEl && !seenUserEls.has(userEl)) {
-        seenUserEls.add(userEl);
-        const text = (userEl.textContent || '').trim();
-        if (text) conversation.push({ role: 'user', text: text });
-      }
-
-      // Extract AI response HTML from .ds-markdown blocks within this container
-      const blocks = [...ai.querySelectorAll('.ds-markdown')];
-      const html = blocks.map(b => b.innerHTML).join('');
-      if (html) conversation.push({ role: 'assistant', html: html });
-    }
-
-    return conversation;
-  }
-
-  // Walk previous siblings from an AI container to find the user message
-  // element that immediately precedes it. Returns null if not found.
-  function findPrecedingUserMessage(aiContainer, chatArea) {
-    let el = aiContainer;
-    for (let i = 0; i < 8; i++) {
-      const prev = el.previousElementSibling;
-      if (!prev) {
-        el = el.parentElement;
-        if (!el || el === chatArea || el === document.body) break;
-        continue;
-      }
-      const text = (prev.textContent || '').trim();
-      if (text.length > 1 &&
-          !prev.querySelector('.ds-markdown') &&
-          !prev.querySelector('.ds-think-content')) {
-        return prev;
-      }
-      el = prev;
-    }
-    return null;
-  }
-
-  // Count user messages: first try the right-side TOC (DeepSeek extracts
-  // questions into a table-of-contents sidebar that the user confirmed is
-  // accurate), then fall back to locating user-message DOM elements.
-  function countUserMessagesV2(aiContainers, chatArea, allMarkdown) {
-    // Strategy 1: right-side TOC — a narrow panel fixed to the right that
-    // lists every user question as a clickable nav item.
-    const tocQ = countTocItems();
-    if (tocQ > 0) return tocQ;
-
-    // Strategy 2: for each AI container, walk previous siblings to find a
-    // user-message element (text, no .ds-markdown inside).
-    let userCount = 0;
-    for (const ai of aiContainers) {
-      let el = ai;
-      for (let i = 0; i < 5; i++) {
-        const prev = el.previousElementSibling;
-        if (!prev) { el = el.parentElement; if (!el || el === chatArea) break; continue; }
-        const text = (prev.textContent || '').trim();
-        if (text.length > 1 &&
-            !prev.querySelector('.ds-markdown') &&
-            !prev.querySelector('.ds-think-content')) {
-          userCount++;
-          break;
-        }
-        el = prev;
-      }
-    }
-    if (userCount > 0) return userCount;
-
-    // Strategy 3: assume 1:1 with AI responses
-    return aiContainers.length;
-  }
-
-  // Count TOC (table of contents) items in the right sidebar.
-  // DeepSeek's TOC is a narrow right-side panel that appears on hover and
-  // lists every user question. Each item links/scrolls to its question.
-  function countTocItems() {
-    // DeepSeek renders TOC items as clickable elements in a right-side
-    // panel. Try several selectors that match observed DOM patterns.
-    const candidates = [
-      '[class*="toc"] a, [class*="toc"] [role="button"]',
-      '[class*="outline"] a, [class*="outline"] [role="button"]',
-      '[class*="directory"] a, [class*="directory"] [role="button"]',
-      '[class*="catalog"] a, [class*="catalog"] [role="button"]',
-      '[class*="sidebar"] [class*="toc"] a',
-      '[class*="sidebar"] [class*="outline"] a',
-      '[class*="nav"] a[href*="#"]',
-      '[class*="Toc"] a, [class*="Toc"] [role="button"]',
-      '[class*="side"] [class*="list"] > *',
-    ];
-    for (const sel of candidates) {
+    if (IS_EMBEDDED) {
       try {
-        const items = document.querySelectorAll(sel);
-        if (items.length > 0) {
-          // Filter to only items that contain reasonable text (a question)
-          const filtered = [...items].filter(el => {
-            const text = (el.textContent || '').trim();
-            return text.length > 2 && text.length < 300;
-          });
-          if (filtered.length > 0) return filtered.length;
-        }
-      } catch {}
+        window.parent.postMessage({
+          type: 'chatfree-log-msg', text: msg, level: level || null
+        }, '*');
+      } catch (_) {}
+    } else {
+      chrome.runtime.sendMessage({ type: 'debug', source: 'cs', message: msg, level: level || null }).catch(() => {});
     }
-
-    // Also try: find the rightmost fixed/absolute panel (the TOC sidebar)
-    // and count its interactive child elements.
-    try {
-      const allDivs = document.querySelectorAll('div');
-      let bestPanel = null, bestScore = 0;
-      for (const div of allDivs) {
-        const style = window.getComputedStyle(div);
-        if (style.position === 'fixed' || style.position === 'absolute') {
-          const rect = div.getBoundingClientRect();
-          // Right-side panel: right edge near viewport right, reasonable width
-          if (rect.right >= window.innerWidth - 60 && rect.width > 40 && rect.width < 400) {
-            const links = div.querySelectorAll('a, [role="button"], [role="link"]');
-            if (links.length > bestScore) {
-              bestScore = links.length;
-              bestPanel = div;
-            }
-          }
-        }
-      }
-      if (bestPanel && bestScore > 0) {
-        const items = bestPanel.querySelectorAll('a, [role="button"], [role="link"]');
-        const filtered = [...items].filter(el => {
-          const text = (el.textContent || '').trim();
-          return text.length > 2 && text.length < 300;
-        });
-        if (filtered.length > 0) return filtered.length;
-      }
-    } catch {}
-
-    return 0;
   }
 
-  // Sort elements by DOM order (top-to-bottom).
-  function sortEls(elements) {
-    return elements.sort((a, b) => {
-      const pos = a.compareDocumentPosition(b);
-      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-      if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-      return 0;
-    });
+  function reportReady() {
+    if (IS_EMBEDDED) {
+      try { window.parent.postMessage({ type: 'chatfree-ready' }, '*'); } catch (_) {}
+    }
   }
 
-  // Find the main conversation area (center column), excluding sidebars.
-  function findMainChatArea() {
-    const input = document.querySelector('textarea');
-    if (!input) return document.body;
-
-    // Strategy: DeepSeek layout is flex/grid with left sidebar, center column,
-    // right sidebar. Walk up from textarea to find the flex/grid item (column)
-    // that contains the textarea — that's the center column. Then scope all
-    // queries to only that column, excluding sidebars.
-
-    // Step 1: walk up to find the column — the first ancestor that is a direct
-    // child of a flex/grid container AND contains .ds-markdown.
-    let el = input;
-    for (let i = 0; i < 12; i++) {
-      el = el.parentElement;
-      if (!el || el === document.body) break;
-
-      const parent = el.parentElement;
-      if (!parent) continue;
-      const parentStyle = window.getComputedStyle(parent);
-      if (parentStyle.display !== 'flex' && parentStyle.display !== 'grid') continue;
-      if (!el.querySelector('.ds-markdown')) continue;
-
-      // 'el' is a flex/grid item (a column) that contains the textarea and
-      // at least one .ds-markdown. This should be the center chat column.
-      // Step 2: within this column, find the scrollable message container.
-      const scrollCandidates = el.querySelectorAll('[class*="scroll"]');
-      let bestScroll = null;
-      let bestCount = 0;
-      for (const sc of scrollCandidates) {
-        const count = sc.querySelectorAll('.ds-markdown').length;
-        if (count > bestCount) {
-          bestCount = count;
-          bestScroll = sc;
-        }
-      }
-      if (bestScroll) return bestScroll;
-
-      // Step 3: no scroll child — look for the direct child with most .ds-markdown.
-      let bestChild = null;
-      bestCount = 0;
-      for (const child of el.children) {
-        const count = child.querySelectorAll('.ds-markdown').length;
-        if (count > bestCount) {
-          bestCount = count;
-          bestChild = child;
-        }
-      }
-      if (bestChild) return bestChild;
-      return el;
+  function reportResponseStart() {
+    if (IS_EMBEDDED) {
+      try { window.parent.postMessage({ type: 'chatfree-response-start' }, '*'); } catch (_) {}
     }
-
-    // Fallback: find element with most .ds-markdown that also contains the input.
-    let bestEl = document.body;
-    let bestCount = 0;
-    for (const div of document.querySelectorAll('div')) {
-      if (!div.contains(input)) continue;
-      const mdCount = div.querySelectorAll('.ds-markdown').length;
-      if (mdCount > bestCount) {
-        bestCount = mdCount;
-        bestEl = div;
-      }
-    }
-    return bestEl;
   }
 
-
-  function hasRegenerateButton(nearElement) {
-    const msgContainer =
-      nearElement.closest('[class*="ds_message"]') ||
-      nearElement.closest('[class*="message"]') ||
-      nearElement.closest('[class*="answer"]') ||
-      nearElement.closest('[class*="response"]') ||
-      nearElement.parentElement;
-
-    if (!msgContainer) return false;
-
-    const buttons = msgContainer.querySelectorAll('button, [role="button"]');
-    for (const btn of buttons) {
-      if (!btn.offsetParent) continue;
-      const text = (btn.textContent || '').trim();
-      if (text === '重新回答' || text === '重新生成' || text === 'Regenerate' || text === 'Retry') return true;
-      const aria = (btn.getAttribute('aria-label') || btn.getAttribute('title') || '').trim();
-      if (aria && (aria.includes('重新') || aria.includes('regenerate'))) return true;
+  function reportResponseDone() {
+    if (IS_EMBEDDED) {
+      try { window.parent.postMessage({ type: 'chatfree-response-done' }, '*'); } catch (_) {}
     }
-    return false;
   }
 
-  // ---- Send message via DOM (kept for chat action) ----
-  async function doChatViaDOM(message, requestId) {
-    const t0 = Date.now();
-    installSSEInterceptor();
-
-    activeRequestId = requestId;
-    if (currentReader) {
-      currentReader.cancel('superseded').catch(() => {});
-      currentReader = null;
-    }
-    sseActive = false;
-
-    const input = findInput();
-    if (!input) throw new Error('Could not find DeepSeek chat input');
-
-    input.focus();
-    fillInput(input, message);
-    await sleep(300);
-    dbg(`doChat: input filled +${Date.now() - t0}ms`);
-
-    const tSend = Date.now();
-    const sent = await trySend(input);
-    if (!sent) throw new Error('Failed to send message');
-    dbg(`doChat: message sent +${Date.now() - t0}ms (trySend took ${Date.now() - tSend}ms, requestId=${requestId})`);
+  function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  function findInput() {
+  // ---- Shared: find / fill / send input (used by both modes) ----
+
+  function findInput(checkVisible) {
+    if (checkVisible === undefined) checkVisible = true;
+    // In embed mode, use cached input if available (it was hidden so offsetParent is null)
+    if (!checkVisible && _embeddedInput) return _embeddedInput;
     const selectors = [
       'textarea[placeholder*="消息" i]',
       'textarea[placeholder*="问题" i]',
@@ -428,7 +86,7 @@
     for (const sel of selectors) {
       try {
         const el = document.querySelector(sel);
-        if (el && el.offsetParent !== null) return el;
+        if (el && (!checkVisible || el.offsetParent !== null)) return el;
       } catch {}
     }
     return null;
@@ -522,7 +180,32 @@
     return false;
   }
 
-  // ---- SSE interception ----
+  async function doChatViaDOM(message, requestId) {
+    const t0 = Date.now();
+    installSSEInterceptor();
+
+    activeRequestId = requestId;
+    if (currentReader) {
+      currentReader.cancel('superseded').catch(() => {});
+      currentReader = null;
+    }
+    sseActive = false;
+
+    const input = findInput(IS_EMBEDDED ? false : true);
+    if (!input) throw new Error('Could not find ' + BACKEND_NAME + ' chat input');
+
+    input.focus();
+    fillInput(input, message);
+    await sleep(300);
+    dbg(`doChat: input filled +${Date.now() - t0}ms`);
+
+    const tSend = Date.now();
+    const sent = await trySend(input);
+    if (!sent) throw new Error('Failed to send message');
+    dbg(`doChat: message sent +${Date.now() - t0}ms (trySend took ${Date.now() - tSend}ms, requestId=${requestId})`);
+  }
+
+  // ---- Shared: SSE interception (used by both modes) ----
   function installSSEInterceptor() {
     const self = window;
     if (self._chatfree_originalFetch) {
@@ -550,6 +233,7 @@
   async function processSSEStream(response, requestId) {
     const t0 = Date.now();
     sseActive = true;
+    reportResponseStart();
     const reader = response.body.getReader();
     currentReader = reader;
     const decoder = new TextDecoder();
@@ -601,7 +285,9 @@
               chunkCount++;
               if (!firstChunkAt) firstChunkAt = Date.now();
               resetSilenceTimer();
-              chrome.runtime.sendMessage({ type: 'chunk', content: result.text, requestId }).catch(() => {});
+              if (!IS_EMBEDDED) {
+                chrome.runtime.sendMessage({ type: 'chunk', content: result.text, requestId }).catch(() => {});
+              }
             }
             if (result.enteredResponse) inResponse = true;
           } catch {}
@@ -614,8 +300,11 @@
       if (requestId === activeRequestId && chunkCount > 0) {
         const elapsed = Date.now() - t0;
         dbg(`SSE: done sent +${elapsed}ms (${chunkCount} chunks, firstChunkAt=+${firstChunkAt ? firstChunkAt - t0 : '?'}ms, signaled=${doneSignaled})`);
-        chrome.runtime.sendMessage({ type: 'done', requestId }).catch(() => {});
+        if (!IS_EMBEDDED) {
+          chrome.runtime.sendMessage({ type: 'done', requestId }).catch(() => {});
+        }
       }
+      reportResponseDone();
     }
   }
 
@@ -633,8 +322,338 @@
     return { text: '', enteredResponse: false };
   }
 
-  function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  // ============================================================
+  // MODE: Embed (iframe within ChatFree app page)
+  // ============================================================
+  if (IS_EMBEDDED) {
+    dbg('Content script loaded in embed mode [' + window._chatfree_injection_id + ']');
+
+    function hideNativeInput() {
+      const input = findInput(false); // don't check offsetParent
+      if (!input) {
+        dbg('Embed: input not found yet, retrying...', 'warn');
+        setTimeout(hideNativeInput, 500);
+        return;
+      }
+
+      _embeddedInput = input; // cache before hiding
+
+      // Walk up to find the input container/footer and hide it
+      let el = input;
+      for (let i = 0; i < 8; i++) {
+        el = el.parentElement;
+        if (!el || el === document.body) break;
+        const classes = (el.className && typeof el.className === 'string') ? el.className : '';
+        if (classes.includes('footer') || classes.includes('input') ||
+            classes.includes('bottom') || classes.includes('toolbar') ||
+            (classes.includes('chat') && classes.includes('area'))) {
+          el.style.display = 'none';
+          dbg('Embed: hid input container (' + classes.slice(0, 40) + ')');
+          reportReady();
+          installSSEInterceptor();
+          return;
+        }
+      }
+
+      // Fallback: hide the input element itself and nearby buttons
+      input.style.display = 'none';
+      const inputRect = input.getBoundingClientRect();
+      const buttons = document.querySelectorAll('button');
+      for (const btn of buttons) {
+        const rect = btn.getBoundingClientRect();
+        if (Math.abs(rect.bottom - inputRect.bottom) < 200 && rect.bottom > inputRect.top - 50) {
+          btn.style.display = 'none';
+        }
+      }
+      dbg('Embed: hid input element directly');
+      reportReady();
+      installSSEInterceptor();
+    }
+
+    // Listen for forwarded input from the parent ChatFree page
+    window.addEventListener('message', async (event) => {
+      if (!event.data || typeof event.data.type !== 'string') return;
+
+      if (event.data.type === 'chatfree-forward-input') {
+        const text = (event.data.text || '').trim();
+        if (!text) return;
+
+        dbg('Embed: received forwarded input: "' + text.slice(0, 60) + (text.length > 60 ? '...' : '') + '"');
+
+        try {
+          await doChatViaDOM(text, Date.now());
+          try {
+            window.parent.postMessage({ type: 'chatfree-sent' }, '*');
+          } catch (_) {}
+        } catch (err) {
+          dbg('Embed: send failed: ' + err.message, 'err');
+          try {
+            window.parent.postMessage({ type: 'chatfree-error', text: err.message }, '*');
+          } catch (_) {}
+        }
+      }
+
+      if (event.data.type === 'chatfree-ping') {
+        const input = findInput(false);
+        if (input) {
+          hideNativeInput();
+        } else {
+          dbg('Embed: ping received but input not found', 'warn');
+        }
+      }
+    });
+
+    // Start hiding input. Retry if DOM isn't ready yet.
+    hideNativeInput();
+
+    return; // Embed mode: don't set up chrome.runtime listeners
+  }
+
+  // ============================================================
+  // MODE: Top-frame (original tab-based sync/chat)
+  // ============================================================
+
+  // ---- Message handler (chrome.runtime) ----
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (msg.action === 'ping') {
+      sendResponse(capturePageState());
+      return true;
+    }
+
+    if (msg.action === 'sync') {
+      sendResponse(syncConversation());
+      return true;
+    }
+
+    if (msg.action === 'chat') {
+      if (chatInProgress) {
+        sendResponse({ accepted: false });
+        return true;
+      }
+      const requestId = msg.requestId || 0;
+      chatInProgress = true;
+      doChatViaDOM(msg.message, requestId)
+        .catch(err => {
+          dbg('doChatViaDOM error: ' + err.message, 'err');
+          chrome.runtime.sendMessage({ type: 'error', error: err.message, requestId }).catch(() => {});
+        })
+        .finally(() => { chatInProgress = false; });
+      sendResponse({ accepted: true });
+      return true;
+    }
+  });
+
+  // ---- Page state (ping) ----
+  function capturePageState() {
+    const onChatPage = location.pathname.startsWith('/a/chat/');
+    const sessionId = onChatPage ? location.pathname.split('/').pop() : null;
+    const input = document.querySelector('textarea');
+    return {
+      url: location.href,
+      pathname: location.pathname,
+      hasChatSession: onChatPage,
+      sessionId: sessionId,
+      markdownCount: document.querySelectorAll('.ds-markdown').length,
+      inputReady: !!(input && input.offsetParent !== null),
+      sseInterceptorActive: window.fetch === window._chatfree_wrapper,
+      title: document.title
+    };
+  }
+
+  // ---- Sync conversation state ----
+  function syncConversation() {
+    const chatArea = findMainChatArea();
+    const allMarkdown = [...chatArea.querySelectorAll('.ds-markdown')];
+
+    const aiContainers = groupByAiContainer(allMarkdown);
+    const A = aiContainers.length;
+
+    const aiHtmls = aiContainers.map(c => {
+      const blocks = [...c.querySelectorAll('.ds-markdown')];
+      return blocks.map(b => b.innerHTML).join('');
+    }).filter(Boolean);
+
+    const conversation = buildConversation(aiContainers, chatArea);
+    const Q = conversation.filter(m => m.role === 'user').length;
+
+    const lastMd = allMarkdown.length > 0 ? allMarkdown[allMarkdown.length - 1] : null;
+    const lastHtml = lastMd ? lastMd.innerHTML : '';
+    const lastLen = lastHtml.length;
+    const hasRegen = lastMd ? hasRegenerateButton(lastMd) : false;
+    const streaming = lastMd && lastLen > 0 && !hasRegen;
+
+    const totalPageMd = document.querySelectorAll('.ds-markdown').length;
+
+    return {
+      Q: Q,
+      A: A,
+      balanced: Q === A || Q === 0,
+      streaming: streaming,
+      lastMarkdownLength: lastLen,
+      lastMarkdownText: lastHtml,
+      hasRegenerateButton: hasRegen,
+      sessionId: location.pathname.startsWith('/a/chat/') ? location.pathname.split('/').pop() : null,
+      aiHtmls: aiHtmls,
+      conversation: conversation,
+      totalPageMarkdown: totalPageMd,
+      chatAreaMarkdown: allMarkdown.length,
+      injectionId: window._chatfree_injection_id || '?'
+    };
+  }
+
+  function groupByAiContainer(markdownEls) {
+    if (markdownEls.length === 0) return [];
+
+    const byClass = new Set();
+    for (const md of markdownEls) {
+      const c =
+        md.closest('[class*="ds_message"]') ||
+        md.closest('[class*="answer"]') ||
+        md.closest('[class*="response"]');
+      if (c) byClass.add(c);
+    }
+    if (byClass.size > 0) return sortEls([...byClass]);
+
+    const total = markdownEls.length;
+    const groups = new Map();
+    for (const md of markdownEls) {
+      let container = md;
+      let el = md;
+      for (let i = 0; i < 8; i++) {
+        const p = el.parentElement;
+        if (!p || p === document.body) break;
+        const n = p.querySelectorAll('.ds-markdown').length;
+        if (n > 0 && n < total) container = p;
+        if (n >= total) break;
+        el = p;
+      }
+      if (!groups.has(container)) groups.set(container, []);
+      groups.get(container).push(md);
+    }
+    return sortEls([...groups.keys()]);
+  }
+
+  function buildConversation(aiContainers, chatArea) {
+    const conversation = [];
+    const seenUserEls = new Set();
+
+    for (const ai of aiContainers) {
+      const userEl = findPrecedingUserMessage(ai, chatArea);
+      if (userEl && !seenUserEls.has(userEl)) {
+        seenUserEls.add(userEl);
+        const text = (userEl.textContent || '').trim();
+        if (text) conversation.push({ role: 'user', text: text });
+      }
+
+      const blocks = [...ai.querySelectorAll('.ds-markdown')];
+      const html = blocks.map(b => b.innerHTML).join('');
+      if (html) conversation.push({ role: 'assistant', html: html });
+    }
+
+    return conversation;
+  }
+
+  function findPrecedingUserMessage(aiContainer, chatArea) {
+    let el = aiContainer;
+    for (let i = 0; i < 8; i++) {
+      const prev = el.previousElementSibling;
+      if (!prev) {
+        el = el.parentElement;
+        if (!el || el === chatArea || el === document.body) break;
+        continue;
+      }
+      const text = (prev.textContent || '').trim();
+      if (text.length > 1 &&
+          !prev.querySelector('.ds-markdown') &&
+          !prev.querySelector('.ds-think-content')) {
+        return prev;
+      }
+      el = prev;
+    }
+    return null;
+  }
+
+  function sortEls(elements) {
+    return elements.sort((a, b) => {
+      const pos = a.compareDocumentPosition(b);
+      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+      if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+      return 0;
+    });
+  }
+
+  function findMainChatArea() {
+    const input = document.querySelector('textarea');
+    if (!input) return document.body;
+
+    let el = input;
+    for (let i = 0; i < 12; i++) {
+      el = el.parentElement;
+      if (!el || el === document.body) break;
+
+      const parent = el.parentElement;
+      if (!parent) continue;
+      const parentStyle = window.getComputedStyle(parent);
+      if (parentStyle.display !== 'flex' && parentStyle.display !== 'grid') continue;
+      if (!el.querySelector('.ds-markdown')) continue;
+
+      const scrollCandidates = el.querySelectorAll('[class*="scroll"]');
+      let bestScroll = null;
+      let bestCount = 0;
+      for (const sc of scrollCandidates) {
+        const count = sc.querySelectorAll('.ds-markdown').length;
+        if (count > bestCount) {
+          bestCount = count;
+          bestScroll = sc;
+        }
+      }
+      if (bestScroll) return bestScroll;
+
+      let bestChild = null;
+      bestCount = 0;
+      for (const child of el.children) {
+        const count = child.querySelectorAll('.ds-markdown').length;
+        if (count > bestCount) {
+          bestCount = count;
+          bestChild = child;
+        }
+      }
+      if (bestChild) return bestChild;
+      return el;
+    }
+
+    let bestEl = document.body;
+    let bestCount = 0;
+    for (const div of document.querySelectorAll('div')) {
+      if (!div.contains(input)) continue;
+      const mdCount = div.querySelectorAll('.ds-markdown').length;
+      if (mdCount > bestCount) {
+        bestCount = mdCount;
+        bestEl = div;
+      }
+    }
+    return bestEl;
+  }
+
+  function hasRegenerateButton(nearElement) {
+    const msgContainer =
+      nearElement.closest('[class*="ds_message"]') ||
+      nearElement.closest('[class*="message"]') ||
+      nearElement.closest('[class*="answer"]') ||
+      nearElement.closest('[class*="response"]') ||
+      nearElement.parentElement;
+
+    if (!msgContainer) return false;
+
+    const buttons = msgContainer.querySelectorAll('button, [role="button"]');
+    for (const btn of buttons) {
+      if (!btn.offsetParent) continue;
+      const text = (btn.textContent || '').trim();
+      if (text === '重新回答' || text === '重新生成' || text === 'Regenerate' || text === 'Retry') return true;
+      const aria = (btn.getAttribute('aria-label') || btn.getAttribute('title') || '').trim();
+      if (aria && (aria.includes('重新') || aria.includes('regenerate'))) return true;
+    }
+    return false;
   }
 
   // ---- Init ----
