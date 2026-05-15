@@ -1,37 +1,49 @@
 // modules/preset-panel.js
 // Preset rules panel — toggle-able instruction rules prepended to AI messages.
 //
-// Data flow: data/presets.json → fetch → memory → UI. All edits in memory.
-// On tab close: auto-download presets.json if dirty.
+// Storage: localStorage as primary store, data/presets.json as seed (first launch).
+// Normal view: read-only. Edit mode: full CRUD via edit dialog.
 //
 // Interface: createPresetPanel({ container }) → { getActiveRulesText, onChange }
 
 export function createPresetPanel({ container }) {
+  const STORAGE_KEY = 'chatfree_presets';
   let presets = [];
   const changeCallbacks = [];
   let dirty = false;
-  let dialog = null;
-  let editingIndex = -1; // -1 = add new, >= 0 = edit existing
+  let dialog = null;       // add/edit dialog
+  let editDialog = null;   // edit-mode dialog
+  let editPresets = null;  // working copy during edit mode
+  let editingIndex = -1;
 
-  // ---- Data ----
+  // ---- Storage ----
   async function loadPresets() {
+    // 1) Try localStorage first
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        presets = JSON.parse(stored);
+        return;
+      } catch { /* fall through */ }
+    }
+
+    // 2) Seed from data/presets.json
     try {
       const url = chrome.runtime.getURL('data/presets.json');
       const resp = await fetch(url);
       if (resp.ok) {
         presets = await resp.json();
+        saveToLocalStorage();
         return;
       }
     } catch { /* empty */ }
+
     presets = [];
   }
 
-  function notifyChange() {
-    changeCallbacks.forEach(cb => cb(presets));
-  }
-
-  function getActiveRulesText() {
-    return presets.filter(p => p.enabled).map(p => p.text).join('\n');
+  function saveToLocalStorage() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(presets, null, 2));
+    dirty = false;
   }
 
   function downloadPresets() {
@@ -42,19 +54,45 @@ export function createPresetPanel({ container }) {
     a.download = 'presets.json';
     a.click();
     URL.revokeObjectURL(url);
-    dirty = false;
+  }
+
+  function importPresetsFile() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (!Array.isArray(data)) throw new Error('Not an array');
+          editPresets = data;
+          renderEditList();
+        } catch {
+          alert('无效的 JSON 文件。请导入有效的 presets 数组。');
+        }
+      };
+      reader.readAsText(file);
+    });
+    input.click();
   }
 
   // Auto-save on tab close
-  window.addEventListener('beforeunload', (e) => {
-    if (dirty) {
-      downloadPresets();
-      e.preventDefault();
-      e.returnValue = '';
-    }
+  window.addEventListener('beforeunload', () => {
+    if (dirty) saveToLocalStorage();
   });
 
-  // ---- Dialog ----
+  function notifyChange() {
+    changeCallbacks.forEach(cb => cb(presets));
+  }
+
+  function getActiveRulesText() {
+    return presets.filter(p => p.enabled).map(p => p.text).join('\n');
+  }
+
+  // ---- Add/Edit dialog (nested) ----
   function buildDialog() {
     dialog = document.createElement('dialog');
     dialog.id = 'preset-dialog';
@@ -84,11 +122,12 @@ export function createPresetPanel({ container }) {
       const text = dialog.querySelector('#dialog-text').value.trim();
       if (!label || !text) return;
 
+      const target = editPresets || presets;
       if (editingIndex >= 0) {
-        presets[editingIndex].label = label;
-        presets[editingIndex].text = text;
+        target[editingIndex].label = label;
+        target[editingIndex].text = text;
       } else {
-        presets.push({
+        target.push({
           id: 'p' + Date.now(),
           label,
           text,
@@ -96,8 +135,15 @@ export function createPresetPanel({ container }) {
         });
       }
       dialog.close();
-      render();
-      downloadPresets();
+
+      if (editPresets) {
+        // In edit mode: refresh the edit list only
+        renderEditList();
+      } else {
+        render();
+        dirty = true;
+        saveToLocalStorage();
+      }
     });
 
     dialog.querySelector('#dialog-cancel').addEventListener('click', () => {
@@ -111,10 +157,11 @@ export function createPresetPanel({ container }) {
     const label = dialog.querySelector('#dialog-label');
     const text = dialog.querySelector('#dialog-text');
 
+    const source = editPresets || presets;
     if (index >= 0) {
       title.textContent = '编辑规则';
-      label.value = presets[index].label;
-      text.value = presets[index].text;
+      label.value = source[index].label;
+      text.value = source[index].text;
     } else {
       title.textContent = '添加规则';
       label.value = '';
@@ -123,10 +170,147 @@ export function createPresetPanel({ container }) {
     dialog.showModal();
   }
 
-  // ---- Render ----
+  // ---- Edit-mode dialog ----
+  function buildEditDialog() {
+    editDialog = document.createElement('dialog');
+    editDialog.id = 'edit-dialog';
+    editDialog.innerHTML = `
+      <div id="edit-dialog-header">
+        <span id="edit-dialog-title">编辑规则</span>
+        <button id="edit-dialog-close" title="关闭">✕</button>
+      </div>
+      <div id="edit-list"></div>
+      <div id="edit-list-add-row">
+        <button id="edit-list-add-btn" title="添加规则">+ 添加新规则</button>
+      </div>
+      <div id="edit-dialog-footer">
+        <button id="edit-import-btn" title="从文件导入 JSON">导入</button>
+        <div id="edit-dialog-actions">
+          <button id="edit-save-btn">保存</button>
+          <button id="edit-saveas-btn">另存为</button>
+        </div>
+      </div>
+    `;
+    container.appendChild(editDialog);
+
+    editDialog.querySelector('#edit-dialog-close').addEventListener('click', () => {
+      editDialog.close();
+      editPresets = null;
+      render();
+    });
+
+    editDialog.querySelector('#edit-list-add-btn').addEventListener('click', () => {
+      openDialog(-1);
+    });
+
+    editDialog.querySelector('#edit-save-btn').addEventListener('click', () => {
+      presets = [...editPresets];
+      saveToLocalStorage();
+      editDialog.close();
+      editPresets = null;
+      render();
+    });
+
+    editDialog.querySelector('#edit-saveas-btn').addEventListener('click', () => {
+      // Download the edit copy
+      const blob = new Blob([JSON.stringify(editPresets, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'presets.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    editDialog.querySelector('#edit-import-btn').addEventListener('click', () => {
+      importPresetsFile();
+    });
+
+    editDialog.addEventListener('close', () => {
+      editPresets = null;
+      render();
+    });
+  }
+
+  function openEditDialog() {
+    if (!editDialog) buildEditDialog();
+    editPresets = JSON.parse(JSON.stringify(presets)); // deep copy
+    renderEditList();
+    editDialog.showModal();
+  }
+
+  function renderEditList() {
+    if (!editDialog) return;
+    const list = editDialog.querySelector('#edit-list');
+    list.innerHTML = '';
+
+    if (!editPresets || !editPresets.length) {
+      const empty = document.createElement('div');
+      empty.className = 'preset-empty';
+      empty.textContent = '暂无规则。点下方 + 添加。';
+      list.appendChild(empty);
+      return;
+    }
+
+    editPresets.forEach((p, i) => {
+      list.appendChild(createEditItem(p, i));
+    });
+  }
+
+  function createEditItem(preset, index) {
+    const item = document.createElement('div');
+    item.className = 'preset-item edit-item' + (preset.enabled ? ' active' : '');
+
+    const body = document.createElement('div');
+    body.className = 'preset-body';
+
+    const label = document.createElement('span');
+    label.className = 'preset-label';
+    label.textContent = preset.label;
+    body.appendChild(label);
+
+    const text = document.createElement('span');
+    text.className = 'preset-text';
+    text.textContent = preset.text;
+    body.appendChild(text);
+
+    item.appendChild(body);
+
+    const actions = document.createElement('div');
+    actions.className = 'preset-actions edit-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'preset-edit-btn';
+    editBtn.textContent = '✎';
+    editBtn.title = '编辑';
+    editBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openDialog(index);
+    });
+    actions.appendChild(editBtn);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'preset-del-btn';
+    delBtn.textContent = '✕';
+    delBtn.title = '删除';
+    delBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm('删除 "' + preset.label + '"?')) {
+        editPresets.splice(index, 1);
+        renderEditList();
+      }
+    });
+    actions.appendChild(delBtn);
+
+    item.appendChild(actions);
+
+    return item;
+  }
+
+  // ---- Normal render ----
   function render() {
-    // Preserve dialog if it exists
     const existingDialog = container.querySelector('#preset-dialog');
+    const existingEditDialog = container.querySelector('#edit-dialog');
     container.innerHTML = '';
 
     // Header
@@ -138,12 +322,12 @@ export function createPresetPanel({ container }) {
     title.textContent = 'Rules';
     header.appendChild(title);
 
-    const addBtn = document.createElement('button');
-    addBtn.id = 'preset-add-btn';
-    addBtn.textContent = '+';
-    addBtn.title = '添加规则';
-    addBtn.addEventListener('click', () => openDialog(-1));
-    header.appendChild(addBtn);
+    const editBtn = document.createElement('button');
+    editBtn.id = 'preset-edit-icon';
+    editBtn.textContent = '⚙';
+    editBtn.title = '编辑规则';
+    editBtn.addEventListener('click', () => openEditDialog());
+    header.appendChild(editBtn);
 
     container.appendChild(header);
 
@@ -154,7 +338,7 @@ export function createPresetPanel({ container }) {
     if (!presets.length) {
       const empty = document.createElement('div');
       empty.className = 'preset-empty';
-      empty.textContent = '暂无规则。点 + 添加。';
+      empty.textContent = '暂无规则。点 ⚙ 编辑。';
       list.appendChild(empty);
     } else {
       presets.forEach((p, i) => list.appendChild(createItem(p, i)));
@@ -162,7 +346,7 @@ export function createPresetPanel({ container }) {
 
     container.appendChild(list);
 
-    // Restore or create dialog
+    // Restore or create dialogs
     if (existingDialog) {
       container.appendChild(existingDialog);
       dialog = existingDialog;
@@ -170,6 +354,13 @@ export function createPresetPanel({ container }) {
       buildDialog();
     } else {
       container.appendChild(dialog);
+    }
+
+    if (existingEditDialog) {
+      container.appendChild(existingEditDialog);
+      editDialog = existingEditDialog;
+    } else if (editDialog) {
+      container.appendChild(editDialog);
     }
 
     notifyChange();
@@ -186,6 +377,7 @@ export function createPresetPanel({ container }) {
       presets[index].enabled = cb.checked;
       item.classList.toggle('active', cb.checked);
       dirty = true;
+      saveToLocalStorage();
       notifyChange();
     });
     item.appendChild(cb);
@@ -204,30 +396,6 @@ export function createPresetPanel({ container }) {
     body.appendChild(text);
 
     item.appendChild(body);
-
-    const actions = document.createElement('div');
-    actions.className = 'preset-actions';
-
-    const editBtn = document.createElement('button');
-    editBtn.className = 'preset-edit-btn';
-    editBtn.textContent = '✎';
-    editBtn.title = '编辑';
-    editBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      openDialog(index);
-    });
-    actions.appendChild(editBtn);
-
-    item.appendChild(actions);
-
-    item.addEventListener('contextmenu', (e) => {
-      e.preventDefault();
-      if (confirm('删除 "' + preset.label + '"?')) {
-        presets.splice(index, 1);
-        dirty = true;
-        render();
-      }
-    });
 
     return item;
   }
