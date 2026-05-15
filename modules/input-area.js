@@ -21,8 +21,8 @@ export function createInputAreaModule({ container, state, utils }) {
       <div id="input-layout">
         <div id="preset-panel"></div>
         <div id="input-main">
-          <textarea id="message-input" placeholder="Type a message..." disabled></textarea>
-          <div id="input-buttons">
+          <div id="input-wrapper">
+            <textarea id="message-input" placeholder="Type a message..." disabled></textarea>
             <button id="send-btn" disabled>Send</button>
           </div>
         </div>

@@ -9,6 +9,7 @@
 export function createPresetPanel({ container }) {
   const STORAGE_KEY = 'chatfree_presets';
   let presets = [];
+  let filterText = '';
   const changeCallbacks = [];
   let dirty = false;
   let dialog = null;       // add/edit dialog
@@ -312,7 +313,7 @@ export function createPresetPanel({ container }) {
     const existingEditDialog = container.querySelector('#edit-dialog');
     container.innerHTML = '';
 
-    // Header
+    // Header (title + search + gear in one row)
     const header = document.createElement('div');
     header.id = 'preset-header';
 
@@ -320,6 +321,17 @@ export function createPresetPanel({ container }) {
     title.id = 'preset-title';
     title.textContent = '领导指示';
     header.appendChild(title);
+
+    const search = document.createElement('input');
+    search.type = 'text';
+    search.id = 'preset-search';
+    search.placeholder = '搜索...';
+    search.value = filterText;
+    search.addEventListener('input', () => {
+      filterText = search.value.toLowerCase();
+      applyFilter();
+    });
+    header.appendChild(search);
 
     const editBtn = document.createElement('button');
     editBtn.id = 'preset-edit-icon';
@@ -333,17 +345,8 @@ export function createPresetPanel({ container }) {
     // List
     const list = document.createElement('div');
     list.id = 'preset-list';
-
-    if (!presets.length) {
-      const empty = document.createElement('div');
-      empty.className = 'preset-empty';
-      empty.textContent = '暂无规则。点 ⚙ 编辑。';
-      list.appendChild(empty);
-    } else {
-      presets.forEach((p, i) => list.appendChild(createItem(p, i)));
-    }
-
     container.appendChild(list);
+    renderAllItems(list);
 
     // Restore or create dialogs
     if (existingDialog) {
@@ -363,6 +366,33 @@ export function createPresetPanel({ container }) {
     }
 
     notifyChange();
+  }
+
+  function renderAllItems(list) {
+    list.innerHTML = '';
+
+    if (!presets.length) {
+      const empty = document.createElement('div');
+      empty.className = 'preset-empty';
+      empty.textContent = '暂无规则。点 ⚙ 编辑。';
+      list.appendChild(empty);
+      return;
+    }
+
+    presets.forEach((p, i) => list.appendChild(createItem(p, i)));
+  }
+
+  function applyFilter() {
+    const items = container.querySelectorAll('#preset-list > .preset-item');
+    if (!filterText) {
+      items.forEach(el => el.classList.remove('filtered-out'));
+      return;
+    }
+    items.forEach(el => {
+      const label = el.querySelector('.preset-label').textContent.toLowerCase();
+      const text = el.querySelector('.preset-text').textContent.toLowerCase();
+      el.classList.toggle('filtered-out', !label.includes(filterText) && !text.includes(filterText));
+    });
   }
 
   function createItem(preset, index) {
