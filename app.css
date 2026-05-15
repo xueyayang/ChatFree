@@ -141,7 +141,8 @@ body {
 
 /* -- Preset panel (left) -- */
 #preset-panel {
-  width: 210px;
+  width: 42%;
+  min-width: 220px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -271,8 +272,7 @@ body {
   opacity: 1;
 }
 
-.preset-edit-btn,
-.preset-del-btn {
+.preset-edit-btn {
   width: 20px;
   height: 18px;
   border: none;
@@ -290,11 +290,6 @@ body {
 .preset-edit-btn:hover {
   color: #539bf5;
   background: #1e2a3a;
-}
-
-.preset-del-btn:hover {
-  color: #e5534b;
-  background: #2a1e1e;
 }
 
 .preset-empty {

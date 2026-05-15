@@ -1,0 +1,20 @@
+[
+  {
+    "id": "p1",
+    "label": "Skip pleasantries",
+    "text": "请直接给出答案，不要寒暄客套，不要说\"好的\"、\"明白了\"、\"希望对你有帮助\"等多余的话。",
+    "enabled": true
+  },
+  {
+    "id": "p2",
+    "label": "Code best practices",
+    "text": "代码请使用最佳实践，包含适当的错误处理。",
+    "enabled": false
+  },
+  {
+    "id": "p3",
+    "label": "Reply in Chinese",
+    "text": "请用中文回答。",
+    "enabled": true
+  }
+]

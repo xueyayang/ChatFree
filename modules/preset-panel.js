@@ -6,29 +6,39 @@
 
 const STORAGE_KEY = 'chatfree_presets';
 
-const DEFAULT_PRESETS = [
-  { id: 'p1', label: 'Skip pleasantries', text: '请直接给出答案，不要寒暄客套，不要说"好的"、"明白了"、"希望对你有帮助"等多余的话。', enabled: true },
-  { id: 'p2', label: 'Code best practices', text: '代码请使用最佳实践，包含适当的错误处理。', enabled: false },
-  { id: 'p3', label: 'Reply in Chinese', text: '请用中文回答。', enabled: true },
-];
-
 export function createPresetPanel({ container }) {
   let presets = [];
   const changeCallbacks = [];
   let _fileInput = null;
 
-  function loadPresets() {
+  async function loadPresets() {
+    // 1. Try localStorage (user's saved data)
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        presets = JSON.parse(raw);
-        if (!presets.length) presets = DEFAULT_PRESETS.map(p => ({ ...p }));
-      } else {
-        presets = DEFAULT_PRESETS.map(p => ({ ...p }));
+        const saved = JSON.parse(raw);
+        if (saved.length) {
+          presets = saved;
+          return;
+        }
       }
-    } catch {
-      presets = DEFAULT_PRESETS.map(p => ({ ...p }));
-    }
+    } catch { /* fall through to defaults */ }
+
+    // 2. Load seed data from bundled JSON file
+    try {
+      const url = chrome.runtime.getURL('data/presets.json');
+      const resp = await fetch(url);
+      if (resp.ok) {
+        presets = await resp.json();
+        if (presets.length) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+          return;
+        }
+      }
+    } catch { /* fall through to empty */ }
+
+    // 3. Ultimate fallback
+    presets = [];
   }
 
   function savePresets() {
@@ -139,19 +149,19 @@ export function createPresetPanel({ container }) {
     });
     actions.appendChild(editBtn);
 
-    const delBtn = document.createElement('button');
-    delBtn.className = 'preset-del-btn';
-    delBtn.textContent = '×';
-    delBtn.title = '删除';
-    delBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      presets.splice(index, 1);
-      savePresets();
-      render();
-    });
-    actions.appendChild(delBtn);
-
     item.appendChild(actions);
+
+    // Right-click to delete
+    item.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const ok = confirm('删除规则 "' + preset.label + '"?');
+      if (ok) {
+        presets.splice(index, 1);
+        savePresets();
+        render();
+      }
+    });
 
     return item;
   }
@@ -223,9 +233,8 @@ export function createPresetPanel({ container }) {
     changeCallbacks.push(callback);
   }
 
-  // Init
-  loadPresets();
-  render();
+  // Init — async: tries localStorage first, then fetches bundled JSON
+  const initPromise = loadPresets().then(() => render());
 
-  return { getActiveRulesText, onChange, getPresets: () => presets };
+  return { getActiveRulesText, onChange, getPresets: () => presets, initPromise };
 }
