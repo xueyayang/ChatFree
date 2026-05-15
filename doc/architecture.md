@@ -132,13 +132,13 @@ ChatFree/
 
 **接口**：`createPresetPanel({ container })` → `{ getActiveRulesText, onChange, getPresets }`
 
-**数据模型**：纯内存 + 显式文件读写，无 localStorage。
+**数据模型**：纯内存，浏览器内置能力。
 1. **启动**：`fetch(data/presets.json)` → 内存 → 渲染 UI
-2. **编辑**：修改内存 → 重新渲染（不自动持久化）
-3. **保存**：点 💾 → 下载 `presets.json` → 用户手动替换 `data/presets.json`
-4. **导入**：点 📂 → 选择 JSON 文件 → 追加到内存 → 重新渲染
+2. **编辑**：`<dialog>` 弹窗（名称 + 文本表单）→ 修改内存 → 重新渲染
+3. **关闭**：`beforeunload` 检测修改 → 自动触发下载 `presets.json` + 浏览器"离开?"对话框
+4. **用户替换** `data/presets.json` → 重启生效
 
-> **说明**：Chrome 扩展运行时无法写入自身安装目录。方案是用户显式下载文件后替换。内存中修改如果不保存，重启后会丢失。
+> **说明**：Chrome 扩展无法运行时写入安装目录。用 `<dialog>`（浏览器内置）代替 `prompt()`，用 `beforeunload` 自动下载代替手动 💾 按钮。数据流：`文件 → fetch → 内存 → dialog 编辑 → beforeunload 下载 → 用户替换文件`。
 
 **默认规则**：`data/presets.json` 内置 3 个规则作为起点：
 | 规则 | 文本 |
@@ -147,17 +147,12 @@ ChatFree/
 | Code best practices | 代码请使用最佳实践… |
 | Reply in Chinese | 请用中文回答。 |
 
-**文件导入**：通过隐藏的 `<input type="file">` 读取本地 JSON 文件，支持两种格式：
-- 数组格式：`[{ "label": "...", "text": "...", "enabled": true }]`
-- 对象格式：`{ "presets": [...] }`
-- 导入的规则追加到现有列表，不覆盖
-
 **UI 交互**：
 - 每条规则显示 checkbox + 标签名 + 灰色规则文本预览
-- hover 时显示编辑 (✎) 按钮
+- 新增/编辑：弹出浏览器内置 `<dialog>`，含名称 input + 文本 textarea，保存/取消按钮
+- hover 时显示 ✎ 编辑按钮
 - 右键 → `confirm()` 确认删除
-- 启用状态实时切换，即时保存到 localStorage
-- 空列表时显示引导提示
+- 关闭页签时 `beforeunload` 检测修改 → 自动下载 `presets.json` 文件
 
 ### 4. sync-embed.js — Embed 同步模块
 
