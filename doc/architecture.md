@@ -132,19 +132,13 @@ ChatFree/
 
 **接口**：`createPresetPanel({ container })` → `{ getActiveRulesText, onChange, getPresets }`
 
-**数据加载**（三级 fallback）：
-1. `localStorage` (`chatfree_presets`) — 用户编辑后的数据，优先使用
-2. `data/presets.json` — 扩展内置种子文件，通过 `fetch(chrome.runtime.getURL(...))` 加载
-3. 空数组 — 最终 fallback
+**数据模型**：纯内存 + 显式文件读写，无 localStorage。
+1. **启动**：`fetch(data/presets.json)` → 内存 → 渲染 UI
+2. **编辑**：修改内存 → 重新渲染（不自动持久化）
+3. **保存**：点 💾 → 下载 `presets.json` → 用户手动替换 `data/presets.json`
+4. **导入**：点 📂 → 选择 JSON 文件 → 追加到内存 → 重新渲染
 
-**数据持久化**：用户编辑自动保存到 `localStorage`，格式为 JSON 数组：
-```json
-[
-  { "id": "p1", "label": "Skip pleasantries", "text": "请直接给出答案...", "enabled": true }
-]
-```
-
-> **浏览器限制说明**：Chrome 扩展无法直接写回自身安装目录下的 `data/presets.json`。编辑后的数据自动保存到 `localStorage`，下次启动优先读取。如需导出到文件，使用 📂 按钮。
+> **说明**：Chrome 扩展运行时无法写入自身安装目录。方案是用户显式下载文件后替换。内存中修改如果不保存，重启后会丢失。
 
 **默认规则**：`data/presets.json` 内置 3 个规则作为起点：
 | 规则 | 文本 |

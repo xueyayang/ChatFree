@@ -1,52 +1,45 @@
 // modules/preset-panel.js
 // Preset rules panel — toggle-able instruction rules prepended to AI messages.
 //
-// Data flow: localStorage is the working copy. On first launch, seed from
-// data/presets.json. Every edit writes localStorage then re-renders UI.
+// Data flow: data/presets.json → memory → UI. Edits stay in memory until
+// user explicitly downloads (💾). No localStorage, no automatic persistence.
 //
 // Interface: createPresetPanel({ container }) → { getActiveRulesText, onChange }
-
-const STORAGE_KEY = 'chatfree_presets';
 
 export function createPresetPanel({ container }) {
   let presets = [];
   const changeCallbacks = [];
-  let _fileInput = null;
+  let _importInput = null;
 
   // ---- Data ----
   async function loadPresets() {
-    // 1. localStorage — the working copy
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (saved.length) { presets = saved; return; }
-      }
-    } catch { /* fall through */ }
-
-    // 2. First launch — seed from bundled file
     try {
       const url = chrome.runtime.getURL('data/presets.json');
       const resp = await fetch(url);
       if (resp.ok) {
         presets = await resp.json();
-        if (presets.length) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
-          return;
-        }
+        return;
       }
-    } catch { /* fall through */ }
-
+    } catch { /* empty */ }
     presets = [];
   }
 
-  function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+  function notifyChange() {
     changeCallbacks.forEach(cb => cb(presets));
   }
 
   function getActiveRulesText() {
     return presets.filter(p => p.enabled).map(p => p.text).join('\n');
+  }
+
+  function downloadPresets() {
+    const blob = new Blob([JSON.stringify(presets, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'presets.json';
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   // ---- Render ----
@@ -69,19 +62,30 @@ export function createPresetPanel({ container }) {
     addBtn.addEventListener('click', addPreset);
     header.appendChild(addBtn);
 
-    const fileBtn = document.createElement('button');
-    fileBtn.id = 'preset-load-btn';
-    fileBtn.textContent = '\u{1F4C2}';
-    fileBtn.title = '导入/导出 JSON 文件';
-    fileBtn.addEventListener('click', () => _fileInput.click());
-    header.appendChild(fileBtn);
+    const saveBtn = document.createElement('button');
+    saveBtn.id = 'preset-save-btn';
+    saveBtn.textContent = '\u{1F4BE}';
+    saveBtn.title = '下载保存 presets.json（替换 data/presets.json）';
+    saveBtn.addEventListener('click', () => {
+      if (confirm('下载 presets.json 并用它替换 data/presets.json 文件？')) {
+        downloadPresets();
+      }
+    });
+    header.appendChild(saveBtn);
 
-    _fileInput = document.createElement('input');
-    _fileInput.type = 'file';
-    _fileInput.accept = '.json';
-    _fileInput.hidden = true;
-    _fileInput.addEventListener('change', handleImport);
-    header.appendChild(_fileInput);
+    const importBtn = document.createElement('button');
+    importBtn.id = 'preset-load-btn';
+    importBtn.textContent = '\u{1F4C2}';
+    importBtn.title = '从 JSON 文件导入';
+    importBtn.addEventListener('click', () => _importInput.click());
+    header.appendChild(importBtn);
+
+    _importInput = document.createElement('input');
+    _importInput.type = 'file';
+    _importInput.accept = '.json';
+    _importInput.hidden = true;
+    _importInput.addEventListener('change', handleImport);
+    header.appendChild(_importInput);
 
     container.appendChild(header);
 
@@ -111,7 +115,7 @@ export function createPresetPanel({ container }) {
     cb.addEventListener('change', () => {
       presets[index].enabled = cb.checked;
       item.classList.toggle('active', cb.checked);
-      save();
+      notifyChange();
     });
     item.appendChild(cb);
 
@@ -130,7 +134,6 @@ export function createPresetPanel({ container }) {
 
     item.appendChild(body);
 
-    // Edit button (hover)
     const actions = document.createElement('div');
     actions.className = 'preset-actions';
 
@@ -146,12 +149,10 @@ export function createPresetPanel({ container }) {
 
     item.appendChild(actions);
 
-    // Right-click → delete
     item.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       if (confirm('删除 "' + preset.label + '"?')) {
         presets.splice(index, 1);
-        save();
         render();
       }
     });
@@ -159,7 +160,7 @@ export function createPresetPanel({ container }) {
     return item;
   }
 
-  // ---- Edit operations (save + re-render) ----
+  // ---- Edit operations (memory only) ----
   function addPreset() {
     const label = prompt('规则名称（显示标签）:');
     if (!label || !label.trim()) return;
@@ -172,7 +173,6 @@ export function createPresetPanel({ container }) {
       text: text.trim(),
       enabled: true
     });
-    save();
     render();
   }
 
@@ -185,11 +185,10 @@ export function createPresetPanel({ container }) {
 
     if (label.trim()) p.label = label.trim();
     if (text.trim()) p.text = text.trim();
-    save();
     render();
   }
 
-  // ---- Import (📂 button) ----
+  // ---- Import ----
   function handleImport(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -211,7 +210,6 @@ export function createPresetPanel({ container }) {
             enabled: item.enabled !== false
           });
         });
-        save();
         render();
       } catch (err) {
         alert('导入失败: ' + err.message);
