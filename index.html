@@ -11,21 +11,28 @@
     <header id="header">
       <h1 id="title">ChatFree</h1>
       <div id="header-controls">
-        <select id="backend-select">
-          <option value="deepseek">DeepSeek</option>
-          <option value="chatgpt">ChatGPT</option>
-          <option value="doubao">豆包 Doubao</option>
-        </select>
-        <div id="status-bar">
-          <span id="status-dot"></span>
-          <span id="status-text">Checking...</span>
+        <div id="site-icons">
+          <button class="site-icon" data-site="deepseek" title="DeepSeek">
+            <img src="https://www.google.com/s2/favicons?domain=chat.deepseek.com&sz=32" alt="DS" />
+          </button>
+          <button class="site-icon" data-site="chatgpt" title="ChatGPT">
+            <img src="https://www.google.com/s2/favicons?domain=chatgpt.com&sz=32" alt="GPT" />
+          </button>
+          <button class="site-icon" data-site="doubao" title="豆包">
+            <img src="https://www.google.com/s2/favicons?domain=www.doubao.com&sz=32" alt="DB" />
+          </button>
         </div>
         <button id="debug-toggle" title="Toggle debug panel">DBG</button>
       </div>
     </header>
 
     <div id="main-area">
-      <div id="embed-area" class="hidden"></div>
+      <div id="embed-panel-left" class="embed-panel hidden"></div>
+      <div id="embed-panel-right" class="embed-panel hidden"></div>
+      <div id="panel-switch" class="hidden">
+        <div class="switch-side left" data-side="left"></div>
+        <div class="switch-side right" data-side="right"></div>
+      </div>
 
       <aside id="debug-panel" class="hidden">
         <div id="debug-header">
