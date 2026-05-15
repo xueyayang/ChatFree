@@ -111,11 +111,20 @@ export function createPresetPanel({ container }) {
     });
     item.appendChild(checkbox);
 
+    const body = document.createElement('div');
+    body.className = 'preset-body';
+
     const label = document.createElement('span');
     label.className = 'preset-label';
     label.textContent = preset.label;
-    label.title = preset.text;
-    item.appendChild(label);
+    body.appendChild(label);
+
+    const text = document.createElement('span');
+    text.className = 'preset-text';
+    text.textContent = preset.text;
+    body.appendChild(text);
+
+    item.appendChild(body);
 
     const actions = document.createElement('div');
     actions.className = 'preset-actions';
@@ -123,7 +132,7 @@ export function createPresetPanel({ container }) {
     const editBtn = document.createElement('button');
     editBtn.className = 'preset-edit-btn';
     editBtn.textContent = '✎';
-    editBtn.title = 'Edit';
+    editBtn.title = '编辑';
     editBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       editPreset(index);
@@ -133,7 +142,7 @@ export function createPresetPanel({ container }) {
     const delBtn = document.createElement('button');
     delBtn.className = 'preset-del-btn';
     delBtn.textContent = '×';
-    delBtn.title = 'Delete';
+    delBtn.title = '删除';
     delBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       presets.splice(index, 1);
@@ -148,9 +157,9 @@ export function createPresetPanel({ container }) {
   }
 
   function addPreset() {
-    const label = prompt('Rule name (short):');
+    const label = prompt('规则名称（显示在左侧面板）:');
     if (!label || !label.trim()) return;
-    const text = prompt('Rule text (prepended to message):');
+    const text = prompt('规则文本（将附加在每次发送的消息前面）:');
     if (!text || !text.trim()) return;
 
     presets.push({
@@ -165,9 +174,9 @@ export function createPresetPanel({ container }) {
 
   function editPreset(index) {
     const preset = presets[index];
-    const label = prompt('Rule name:', preset.label);
+    const label = prompt('规则名称:', preset.label);
     if (label === null) return;
-    const text = prompt('Rule text:', preset.text);
+    const text = prompt('规则文本:', preset.text);
     if (text === null) return;
 
     if (label.trim()) preset.label = label.trim();

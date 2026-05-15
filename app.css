@@ -234,14 +234,30 @@ body {
   flex-shrink: 0;
 }
 
-.preset-label {
+.preset-body {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.preset-label {
   font-size: 11px;
   color: #808896;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   transition: color 0.15s;
+}
+
+.preset-text {
+  font-size: 10px;
+  color: #4a505e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 .preset-actions {
