@@ -169,9 +169,7 @@ body {
   flex: 1;
 }
 
-#preset-add-btn,
-#preset-save-btn,
-#preset-load-btn {
+#preset-add-btn {
   width: 24px;
   height: 22px;
   border: 1px solid #2d323c;
@@ -186,14 +184,113 @@ body {
   transition: all 0.15s;
 }
 
-#preset-save-btn,
-#preset-load-btn {
-  font-size: 11px;
+#preset-add-btn:hover {
+  border-color: #539bf5;
+  color: #e1e5eb;
 }
 
-#preset-add-btn:hover,
-#preset-save-btn:hover,
-#preset-load-btn:hover {
+/* ---- Preset edit dialog ---- */
+#preset-dialog {
+  width: 400px;
+  max-width: 90vw;
+  padding: 0;
+  border: 1px solid #2d323c;
+  border-radius: 12px;
+  background: #21252e;
+  color: #e1e5eb;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+#preset-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+
+#preset-dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#preset-dialog #dialog-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f0f2f5;
+  padding: 16px 20px 0;
+  margin: 0;
+}
+
+.dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 20px;
+}
+
+.dialog-field label {
+  font-size: 11px;
+  color: #808896;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dialog-field input,
+.dialog-field textarea {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #3a3f4b;
+  background: #161b22;
+  color: #e1e5eb;
+  font-family: inherit;
+  font-size: 13px;
+  outline: none;
+  resize: vertical;
+  transition: border-color 0.15s;
+}
+
+.dialog-field input:focus,
+.dialog-field textarea:focus {
+  border-color: #539bf5;
+}
+
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 20px 16px;
+}
+
+#dialog-save {
+  padding: 6px 18px;
+  border: none;
+  border-radius: 8px;
+  background: #2d5a3d;
+  color: #7ee787;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+#dialog-save:hover {
+  background: #36854d;
+}
+
+#dialog-cancel {
+  padding: 6px 18px;
+  border: 1px solid #3a3f4b;
+  border-radius: 8px;
+  background: transparent;
+  color: #99a1b3;
+  font-family: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+#dialog-cancel:hover {
   border-color: #539bf5;
   color: #e1e5eb;
 }

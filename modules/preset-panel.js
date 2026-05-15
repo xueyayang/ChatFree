@@ -1,15 +1,17 @@
 // modules/preset-panel.js
 // Preset rules panel — toggle-able instruction rules prepended to AI messages.
 //
-// Data flow: data/presets.json → memory → UI. Edits stay in memory until
-// user explicitly downloads (💾). No localStorage, no automatic persistence.
+// Data flow: data/presets.json → fetch → memory → UI. All edits in memory.
+// On tab close: auto-download presets.json if dirty.
 //
 // Interface: createPresetPanel({ container }) → { getActiveRulesText, onChange }
 
 export function createPresetPanel({ container }) {
   let presets = [];
   const changeCallbacks = [];
-  let _importInput = null;
+  let dirty = false;
+  let dialog = null;
+  let editingIndex = -1; // -1 = add new, >= 0 = edit existing
 
   // ---- Data ----
   async function loadPresets() {
@@ -40,10 +42,91 @@ export function createPresetPanel({ container }) {
     a.download = 'presets.json';
     a.click();
     URL.revokeObjectURL(url);
+    dirty = false;
+  }
+
+  // Auto-save on tab close
+  window.addEventListener('beforeunload', (e) => {
+    if (dirty) {
+      downloadPresets();
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  // ---- Dialog ----
+  function buildDialog() {
+    dialog = document.createElement('dialog');
+    dialog.id = 'preset-dialog';
+    dialog.innerHTML = `
+      <form method="dialog">
+        <h3 id="dialog-title"></h3>
+        <div class="dialog-field">
+          <label for="dialog-label">名称</label>
+          <input type="text" id="dialog-label" maxlength="40" placeholder="简短标签，如"直接回答"">
+        </div>
+        <div class="dialog-field">
+          <label for="dialog-text">文本</label>
+          <textarea id="dialog-text" rows="4" placeholder="附加到消息前的文本，如"请直接给出答案""></textarea>
+        </div>
+        <div class="dialog-buttons">
+          <button type="submit" id="dialog-save">保存</button>
+          <button type="button" id="dialog-cancel">取消</button>
+        </div>
+      </form>
+    `;
+    container.appendChild(dialog);
+
+    const form = dialog.querySelector('form');
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const label = dialog.querySelector('#dialog-label').value.trim();
+      const text = dialog.querySelector('#dialog-text').value.trim();
+      if (!label || !text) return;
+
+      if (editingIndex >= 0) {
+        presets[editingIndex].label = label;
+        presets[editingIndex].text = text;
+      } else {
+        presets.push({
+          id: 'p' + Date.now(),
+          label,
+          text,
+          enabled: true
+        });
+      }
+      dirty = true;
+      dialog.close();
+      render();
+    });
+
+    dialog.querySelector('#dialog-cancel').addEventListener('click', () => {
+      dialog.close();
+    });
+  }
+
+  function openDialog(index) {
+    editingIndex = index;
+    const title = dialog.querySelector('#dialog-title');
+    const label = dialog.querySelector('#dialog-label');
+    const text = dialog.querySelector('#dialog-text');
+
+    if (index >= 0) {
+      title.textContent = '编辑规则';
+      label.value = presets[index].label;
+      text.value = presets[index].text;
+    } else {
+      title.textContent = '添加规则';
+      label.value = '';
+      text.value = '';
+    }
+    dialog.showModal();
   }
 
   // ---- Render ----
   function render() {
+    // Preserve dialog if it exists
+    const existingDialog = container.querySelector('#preset-dialog');
     container.innerHTML = '';
 
     // Header
@@ -59,33 +142,8 @@ export function createPresetPanel({ container }) {
     addBtn.id = 'preset-add-btn';
     addBtn.textContent = '+';
     addBtn.title = '添加规则';
-    addBtn.addEventListener('click', addPreset);
+    addBtn.addEventListener('click', () => openDialog(-1));
     header.appendChild(addBtn);
-
-    const saveBtn = document.createElement('button');
-    saveBtn.id = 'preset-save-btn';
-    saveBtn.textContent = '\u{1F4BE}';
-    saveBtn.title = '下载保存 presets.json（替换 data/presets.json）';
-    saveBtn.addEventListener('click', () => {
-      if (confirm('下载 presets.json 并用它替换 data/presets.json 文件？')) {
-        downloadPresets();
-      }
-    });
-    header.appendChild(saveBtn);
-
-    const importBtn = document.createElement('button');
-    importBtn.id = 'preset-load-btn';
-    importBtn.textContent = '\u{1F4C2}';
-    importBtn.title = '从 JSON 文件导入';
-    importBtn.addEventListener('click', () => _importInput.click());
-    header.appendChild(importBtn);
-
-    _importInput = document.createElement('input');
-    _importInput.type = 'file';
-    _importInput.accept = '.json';
-    _importInput.hidden = true;
-    _importInput.addEventListener('change', handleImport);
-    header.appendChild(_importInput);
 
     container.appendChild(header);
 
@@ -103,6 +161,18 @@ export function createPresetPanel({ container }) {
     }
 
     container.appendChild(list);
+
+    // Restore or create dialog
+    if (existingDialog) {
+      container.appendChild(existingDialog);
+      dialog = existingDialog;
+    } else if (!dialog) {
+      buildDialog();
+    } else {
+      container.appendChild(dialog);
+    }
+
+    notifyChange();
   }
 
   function createItem(preset, index) {
@@ -115,6 +185,7 @@ export function createPresetPanel({ container }) {
     cb.addEventListener('change', () => {
       presets[index].enabled = cb.checked;
       item.classList.toggle('active', cb.checked);
+      dirty = true;
       notifyChange();
     });
     item.appendChild(cb);
@@ -143,7 +214,7 @@ export function createPresetPanel({ container }) {
     editBtn.title = '编辑';
     editBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      editPreset(index);
+      openDialog(index);
     });
     actions.appendChild(editBtn);
 
@@ -153,70 +224,12 @@ export function createPresetPanel({ container }) {
       e.preventDefault();
       if (confirm('删除 "' + preset.label + '"?')) {
         presets.splice(index, 1);
+        dirty = true;
         render();
       }
     });
 
     return item;
-  }
-
-  // ---- Edit operations (memory only) ----
-  function addPreset() {
-    const label = prompt('规则名称（显示标签）:');
-    if (!label || !label.trim()) return;
-    const text = prompt('规则文本（附加到消息前）:');
-    if (!text || !text.trim()) return;
-
-    presets.push({
-      id: 'p' + Date.now(),
-      label: label.trim(),
-      text: text.trim(),
-      enabled: true
-    });
-    render();
-  }
-
-  function editPreset(index) {
-    const p = presets[index];
-    const label = prompt('规则名称:', p.label);
-    if (label === null) return;
-    const text = prompt('规则文本:', p.text);
-    if (text === null) return;
-
-    if (label.trim()) p.label = label.trim();
-    if (text.trim()) p.text = text.trim();
-    render();
-  }
-
-  // ---- Import ----
-  function handleImport(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = JSON.parse(e.target.result);
-        const imported = Array.isArray(data) ? data
-          : (data.presets && Array.isArray(data.presets)) ? data.presets
-          : null;
-        if (!imported) throw new Error('格式错误：需要 JSON 数组');
-
-        imported.forEach((item, i) => {
-          presets.push({
-            id: 'p' + Date.now() + '_' + i,
-            label: item.label || 'Rule ' + (i + 1),
-            text: item.text || '',
-            enabled: item.enabled !== false
-          });
-        });
-        render();
-      } catch (err) {
-        alert('导入失败: ' + err.message);
-      }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
   }
 
   function onChange(callback) {
