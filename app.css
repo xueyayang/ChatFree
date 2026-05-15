@@ -128,13 +128,175 @@ body {
 
 /* ---- Input Area ---- */
 #input-area {
+  flex-shrink: 0;
+  background: #21252e;
+  border-top: 1px solid #2d323c;
+}
+
+#input-layout {
+  display: flex;
+  gap: 0;
+  min-height: 70px;
+}
+
+/* -- Preset panel (left) -- */
+#preset-panel {
+  width: 210px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #2d323c;
+  background: #1a1d23;
+  overflow: hidden;
+}
+
+#preset-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-bottom: 1px solid #2d323c;
+  flex-shrink: 0;
+}
+
+#preset-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #808896;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  flex: 1;
+}
+
+#preset-add-btn,
+#preset-load-btn {
+  width: 24px;
+  height: 22px;
+  border: 1px solid #2d323c;
+  border-radius: 4px;
+  background: transparent;
+  color: #808896;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+#preset-load-btn {
+  font-size: 11px;
+}
+
+#preset-add-btn:hover,
+#preset-load-btn:hover {
+  border-color: #539bf5;
+  color: #e1e5eb;
+}
+
+#preset-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+#preset-list::-webkit-scrollbar {
+  width: 3px;
+}
+
+#preset-list::-webkit-scrollbar-thumb {
+  background: #2d323c;
+  border-radius: 2px;
+}
+
+.preset-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  cursor: default;
+  transition: background 0.15s;
+}
+
+.preset-item:hover {
+  background: #21252e;
+}
+
+.preset-item.active .preset-label {
+  color: #7ee787;
+}
+
+.preset-item input[type="checkbox"] {
+  width: 13px;
+  height: 13px;
+  accent-color: #36854d;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.preset-label {
+  flex: 1;
+  font-size: 11px;
+  color: #808896;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 0.15s;
+}
+
+.preset-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.preset-item:hover .preset-actions {
+  opacity: 1;
+}
+
+.preset-edit-btn,
+.preset-del-btn {
+  width: 20px;
+  height: 18px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: #555d6b;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.preset-edit-btn:hover {
+  color: #539bf5;
+  background: #1e2a3a;
+}
+
+.preset-del-btn:hover {
+  color: #e5534b;
+  background: #2a1e1e;
+}
+
+.preset-empty {
+  padding: 16px 12px;
+  text-align: center;
+  font-size: 10px;
+  color: #3a3f4b;
+  line-height: 1.5;
+}
+
+/* -- Input main (right) -- */
+#input-main {
+  flex: 1;
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  padding: 10px 16px;
-  background: #21252e;
-  border-top: 1px solid #2d323c;
-  flex-shrink: 0;
+  padding: 12px 14px;
+  min-width: 0;
 }
 
 #message-input {
@@ -165,6 +327,13 @@ body {
   color: #555d6b;
 }
 
+#input-buttons {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 #send-btn {
   width: 48px;
   height: 36px;
@@ -191,6 +360,30 @@ body {
   cursor: not-allowed;
 }
 
+#sync-btn {
+  padding: 0 10px;
+  height: 36px;
+  border: 1px solid #36854d;
+  border-radius: 10px;
+  background: #2d5a3d;
+  color: #7ee787;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+#sync-btn:hover:not(:disabled) {
+  background: #36854d;
+}
+
+#sync-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 #test-btn {
   padding: 0 10px;
   height: 36px;
@@ -212,30 +405,6 @@ body {
 }
 
 #test-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-#sync-btn {
-  padding: 0 10px;
-  height: 36px;
-  border: 1px solid #36854d;
-  border-radius: 10px;
-  background: #2d5a3d;
-  color: #7ee787;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-
-#sync-btn:hover:not(:disabled) {
-  background: #36854d;
-}
-
-#sync-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

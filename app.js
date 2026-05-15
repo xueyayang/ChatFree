@@ -2,6 +2,7 @@
 // Embed-only: loads AI platform in iframe, forwards input via postMessage.
 
 import { createEmbedSyncModule } from './modules/sync-embed.js';
+import { createInputAreaModule } from './modules/input-area.js';
 
 // ---- Backend config ----
 const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT', doubao: '豆包' };
@@ -17,10 +18,7 @@ const $ = (sel) => document.querySelector(sel);
 
 // ---- DOM refs ----
 const embedArea = $('#embed-area');
-const inputEl = $('#message-input');
-const sendBtn = $('#send-btn');
-const syncBtn = $('#sync-btn');
-const testBtn = $('#test-btn');
+const inputArea = $('#input-area');
 const statusDot = $('#status-dot');
 const statusText = $('#status-text');
 const backendSelect = $('#backend-select');
@@ -29,10 +27,10 @@ const debugPanel = $('#debug-panel');
 const debugLog = $('#debug-log');
 const debugClear = $('#debug-clear');
 
-// Shared DOM bundle for modules
+// Shared DOM bundle for modules (inputEl/sendBtn filled in after input module init)
 const dom = {
-  get inputEl() { return inputEl; },
-  get sendBtn() { return sendBtn; },
+  get inputEl() { return inputModule ? inputModule.dom.inputEl : null; },
+  get sendBtn() { return inputModule ? inputModule.dom.sendBtn : null; },
   get statusDot() { return statusDot; },
   get statusText() { return statusText; },
   get backendLabel() { return BACKEND_LABELS[state.backend]; },
@@ -44,24 +42,29 @@ const utils = {
   appendDebug
 };
 
-// ---- Active sync module ----
+// ---- Active modules ----
 let syncModule = null;
+let inputModule = null;
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', async () => {
+  // Init input area module (builds DOM, wires internal events)
+  inputModule = createInputAreaModule({ container: inputArea, state, utils });
+  inputModule.init();
+
+  inputModule.onSend((text) => {
+    if (syncModule) syncModule.send(text);
+  });
+
+  inputModule.onSync(() => {
+    if (syncModule) syncModule.sync();
+  });
+
+  inputModule.onTest(runTestPing);
+
   backendSelect.addEventListener('change', onBackendChange);
   debugToggle.addEventListener('click', toggleDebugPanel);
   debugClear.addEventListener('click', clearDebugLog);
-  testBtn.addEventListener('click', runTestPing);
-  syncBtn.addEventListener('click', () => { if (syncModule) syncModule.sync(); });
-  sendBtn.addEventListener('click', () => { if (syncModule) syncModule.send(inputEl.value.trim()); });
-
-  inputEl.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      if (syncModule) syncModule.send(inputEl.value.trim());
-    }
-  });
 
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'debug') {
@@ -81,17 +84,13 @@ async function loadModule() {
   }
 
   embedArea.classList.add('hidden');
-  inputEl.disabled = true;
-  sendBtn.disabled = true;
-  syncBtn.disabled = true;
+  inputModule.setEnabled(false);
 
   appendDebug('app', 'Loading embed module for ' + state.backend);
 
   syncModule = createEmbedSyncModule({ state, dom, utils });
   syncModule.init();
-  inputEl.disabled = false;
-  sendBtn.disabled = false;
-  syncBtn.disabled = false;
+  inputModule.setEnabled(true);
   statusDot.className = 'waiting';
   statusText.textContent = BACKEND_LABELS[state.backend] + ' — Loading...';
 }
@@ -143,9 +142,7 @@ function appendDebug(source, msg, level) {
 async function onBackendChange() {
   state.backend = backendSelect.value;
   state.loggedIn = false;
-  inputEl.disabled = true;
-  sendBtn.disabled = true;
-  syncBtn.disabled = true;
+  inputModule.setEnabled(false);
   statusDot.className = '';
   statusText.textContent = 'Checking...';
   appendDebug('app', 'Backend switched to ' + state.backend);
@@ -165,8 +162,9 @@ async function checkLoginStatus() {
 
 // ---- Test button ----
 async function runTestPing() {
-  testBtn.disabled = true;
-  testBtn.textContent = '...';
+  const btn = inputModule.dom.testBtn;
+  btn.disabled = true;
+  btn.textContent = '...';
 
   appendDebug('app', 'Pinging ' + state.backend + '...');
 
@@ -182,7 +180,7 @@ async function runTestPing() {
   } catch (err) {
     appendDebug('app', 'Ping error: ' + err.message, 'err');
   } finally {
-    testBtn.disabled = false;
-    testBtn.textContent = 'Test';
+    btn.disabled = false;
+    btn.textContent = 'Test';
   }
 }
