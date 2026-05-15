@@ -12,6 +12,7 @@ const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT', doubao: 'è±†å
 const state = {
   activeSites: ['deepseek', 'chatgpt'],  // ordered list, max 2. [0]=left, [1]=right
   activePanel: 'left',  // which panel receives input: 'left' | 'right'
+  splitRatio: 0.5,  // left panel fraction of available width
   requestId: 0
 };
 
@@ -31,6 +32,7 @@ const indicatorLeft = $('#indicator-left');
 const indicatorRight = $('#indicator-right');
 const indicatorStrip = $('#indicator-strip');
 const panelIndicators = { left: indicatorLeft, right: indicatorRight };
+const resizeGutter = $('#resize-gutter');
 
 // ---- Active modules ----
 const panelModules = { left: null, right: null };
@@ -162,9 +164,12 @@ function renderLayout() {
     state.activePanel = state.activePanel === 'left' ? 'right' : 'left';
   }
 
-  // Show center switch only when both panels are active
-  panelSwitch.classList.toggle('hidden', state.activeSites.length < 2);
+  // Show center switch & gutter only when both panels are active
+  const bothActive = state.activeSites.length >= 2;
+  panelSwitch.classList.toggle('hidden', !bothActive);
+  resizeGutter.classList.toggle('hidden', !bothActive);
 
+  applySplit();
   updateIndicators();
 }
 
@@ -227,11 +232,80 @@ function unloadPanel(side) {
   panel.innerHTML = '';
 }
 
+// ---- Panel split resizing ----
+function applySplit() {
+  const bothActive = state.activeSites.length === 2;
+  if (!bothActive) {
+    panelLeft.style.flex = '';
+    panelRight.style.flex = '';
+    indicatorLeft.style.flex = '';
+    indicatorRight.style.flex = '';
+    panelSwitch.style.left = '';
+    return;
+  }
+
+  const debugVisible = !debugPanel.classList.contains('hidden');
+  const gutterWidth = 4;
+  const debugWidth = debugVisible ? 340 : 0;
+  const available = $('#main-area').clientWidth - debugWidth - gutterWidth;
+
+  const leftWidth = available * state.splitRatio;
+
+  panelLeft.style.flex = `0 0 ${leftWidth}px`;
+  panelRight.style.flex = '1 1 0%';
+
+  indicatorLeft.style.flex = `0 0 ${leftWidth}px`;
+  indicatorRight.style.flex = '1 1 0%';
+
+  panelSwitch.style.left = `${leftWidth + gutterWidth / 2}px`;
+}
+
+// ---- Gutter drag ----
+resizeGutter.addEventListener('mousedown', (e) => {
+  e.preventDefault();
+
+  const mainArea = $('#main-area');
+  const debugVisible = !debugPanel.classList.contains('hidden');
+  const debugWidth = debugVisible ? 340 : 0;
+  const gutterWidth = 4;
+
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;cursor:col-resize;';
+  document.body.appendChild(overlay);
+
+  resizeGutter.classList.add('dragging');
+
+  const onMove = (e) => {
+    const rect = mainArea.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const available = mainArea.clientWidth - debugWidth - gutterWidth;
+    state.splitRatio = Math.max(0.15, Math.min(0.85, x / available));
+    applySplit();
+  };
+
+  const onUp = () => {
+    overlay.remove();
+    resizeGutter.classList.remove('dragging');
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+  };
+
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+});
+
+window.addEventListener('resize', () => {
+  if (state.activeSites.length === 2) {
+    applySplit();
+  }
+});
+
 // ---- Debug panel ----
 function toggleDebugPanel() {
   const visible = debugPanel.classList.toggle('hidden');
   debugToggle.classList.toggle('active', !visible);
   indicatorStrip.style.right = visible ? '340px' : '0';
+  applySplit();
 }
 
 function clearDebugLog() {

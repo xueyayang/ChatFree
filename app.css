@@ -940,7 +940,27 @@ body {
 }
 
 #embed-panel-left {
-  border-right: 1px solid #2d323c;
+  border-right: none;
+}
+
+/* ---- Resize gutter (between left/right embed panels) ---- */
+#resize-gutter {
+  width: 4px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: #1a1d23;
+  position: relative;
+  z-index: 3;
+  transition: background 0.2s;
+}
+
+#resize-gutter:hover,
+#resize-gutter.dragging {
+  background: #00d4ff;
+}
+
+#resize-gutter.hidden {
+  display: none;
 }
 
 /* ---- Animations ---- */
