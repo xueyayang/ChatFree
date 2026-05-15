@@ -193,6 +193,7 @@ body {
 #preset-dialog {
   width: 400px;
   max-width: 90vw;
+  margin: auto;
   padding: 0;
   border: 1px solid #2d323c;
   border-radius: 12px;

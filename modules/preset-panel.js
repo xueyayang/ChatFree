@@ -95,9 +95,9 @@ export function createPresetPanel({ container }) {
           enabled: true
         });
       }
-      dirty = true;
       dialog.close();
       render();
+      downloadPresets();
     });
 
     dialog.querySelector('#dialog-cancel').addEventListener('click', () => {
