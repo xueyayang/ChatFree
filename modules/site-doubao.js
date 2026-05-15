@@ -18,6 +18,7 @@
 
     // -- Input selectors (tried in order) --
     inputSelectors: [
+      '.semi-input-textarea',
       'textarea[placeholder*="发消息" i]',
       'textarea[placeholder*="消息" i]',
       'textarea[placeholder*="message" i]',
@@ -27,10 +28,36 @@
     ],
 
     // -- Find the input container to hide --
-    // Only hide the textarea itself, NOT the toolbar ancestor that contains
-    // send buttons — those must stay reachable for trySend to click them.
+    // Three-tier fallback:
+    //   L1 — ancestor with flex-col-reverse (stable Tailwind layout marker)
+    //   L2 — geometry: ancestor pinned to viewport bottom
+    //   L3 — return null, hideNativeInput falls back to hiding textarea only
     findInputContainer(textareaEl) {
-      return { el: textareaEl, method: 'textarea(self)' };
+      // L1: flex-col-reverse is the stable Tailwind class marking Doubao's
+      //     bottom input area container (toolbar + textarea).
+      let el = textareaEl;
+      for (let i = 0; i < 10; i++) {
+        el = el.parentElement;
+        if (!el || el === document.body || el === document.documentElement) break;
+        if (el.classList.contains('flex-col-reverse')) {
+          return { el: el, method: 'struct(flex-col-reverse)' };
+        }
+      }
+
+      // L2: geometry — container pinned to viewport bottom.
+      el = textareaEl;
+      for (let i = 0; i < 10; i++) {
+        el = el.parentElement;
+        if (!el || el === document.body || el === document.documentElement) break;
+        const rect = el.getBoundingClientRect();
+        if (rect.bottom >= window.innerHeight - 30 &&
+            rect.height < window.innerHeight * 0.5) {
+          return { el: el, method: 'geo(bottom)' };
+        }
+      }
+
+      // L3: fallback — hide textarea only.
+      return null;
     },
 
     // -- SSE: URL matching --

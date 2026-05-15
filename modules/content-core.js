@@ -46,6 +46,7 @@
   let activeRequestId = 0;
   let currentReader = null;
   let _embeddedInput = null;
+  let _hiddenEl = null;
 
   // ============================================================
   // Helpers
@@ -215,12 +216,14 @@
     if (!input) throw new Error('Could not find ' + A.name + ' chat input');
 
     // Some sites (Doubao) need the input visible for geometry-based button
-    // detection in trySend. Others (DeepSeek) work fine with Enter key on
-    // hidden inputs — toggling CSS there can break React's event handling.
+    // detection in trySend. We must restore the element that was actually
+    // hidden (_hiddenEl, which may be a container ancestor) — not just the
+    // textarea.  Otherwise getBoundingClientRect() returns offscreen coords
+    // inherited from the still-hidden container.
     let prevCss = null;
-    if (IS_EMBEDDED && A.needsVisibleInput) {
-      prevCss = input.style.cssText;
-      input.style.cssText = '';
+    if (IS_EMBEDDED && A.needsVisibleInput && _hiddenEl) {
+      prevCss = _hiddenEl.style.cssText;
+      _hiddenEl.style.cssText = '';
     }
 
     try {
@@ -235,7 +238,7 @@
       dbg(`doChat: message sent +${Date.now() - t0}ms (trySend took ${Date.now() - tSend}ms, requestId=${requestId})`);
     } finally {
       if (prevCss !== null) {
-        input.style.cssText = prevCss;
+        _hiddenEl.style.cssText = prevCss;
       }
     }
   }
@@ -366,6 +369,8 @@
       el = input;
       method = 'input(fallback)';
     }
+
+    _hiddenEl = el;
 
     el.style.cssText = 'position:fixed !important;left:-9999px !important;top:-9999px !important;' +
                        'width:1px !important;height:1px !important;overflow:hidden !important;';
