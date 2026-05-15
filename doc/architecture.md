@@ -72,6 +72,8 @@ ChatFree/
 ├── content.js              # DeepSeek 站点最后一公里（当前为占位）
 ├── content_doubao.js       # 豆包站点最后一公里（当前为占位）
 ├── content_chatgpt.js      # ChatGPT 完整内容脚本（未迁移到新架构）
+├── data/
+│   └── presets.json          # 预设规则种子数据（启动时 fetch 加载）
 ├── modules/
 │   ├── sync-embed.js       # Embed 同步模块 —— iframe 生命周期管理
 │   ├── input-area.js       # 输入区域模块 —— 左右分栏布局、发送组合
@@ -130,14 +132,21 @@ ChatFree/
 
 **接口**：`createPresetPanel({ container })` → `{ getActiveRulesText, onChange, getPresets }`
 
-**数据持久化**：规则存储在 `localStorage` key `chatfree_presets`，格式为 JSON 数组：
+**数据加载**（三级 fallback）：
+1. `localStorage` (`chatfree_presets`) — 用户编辑后的数据，优先使用
+2. `data/presets.json` — 扩展内置种子文件，通过 `fetch(chrome.runtime.getURL(...))` 加载
+3. 空数组 — 最终 fallback
+
+**数据持久化**：用户编辑自动保存到 `localStorage`，格式为 JSON 数组：
 ```json
 [
   { "id": "p1", "label": "Skip pleasantries", "text": "请直接给出答案...", "enabled": true }
 ]
 ```
 
-**默认规则**：内置 3 个规则作为起点：
+> **浏览器限制说明**：Chrome 扩展无法直接写回自身安装目录下的 `data/presets.json`。编辑后的数据自动保存到 `localStorage`，下次启动优先读取。如需导出到文件，使用 📂 按钮。
+
+**默认规则**：`data/presets.json` 内置 3 个规则作为起点：
 | 规则 | 文本 |
 |------|------|
 | Skip pleasantries | 请直接给出答案，不要寒暄客套… |
@@ -150,8 +159,9 @@ ChatFree/
 - 导入的规则追加到现有列表，不覆盖
 
 **UI 交互**：
-- 每条规则显示 checkbox + 标签名（title 属性显示完整文本）
-- hover 时显示编辑 (✎) 和删除 (×) 按钮
+- 每条规则显示 checkbox + 标签名 + 灰色规则文本预览
+- hover 时显示编辑 (✎) 按钮
+- 右键 → `confirm()` 确认删除
 - 启用状态实时切换，即时保存到 localStorage
 - 空列表时显示引导提示
 
