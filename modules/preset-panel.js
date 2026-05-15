@@ -12,33 +12,40 @@ export function createPresetPanel({ container }) {
   let _fileInput = null;
 
   async function loadPresets() {
-    // 1. Try localStorage (user's saved data)
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (saved.length) {
-          presets = saved;
-          return;
-        }
-      }
-    } catch { /* fall through to defaults */ }
-
-    // 2. Load seed data from bundled JSON file
+    // 1. Always load seed from bundled JSON file (canonical base)
+    let seed = [];
     try {
       const url = chrome.runtime.getURL('data/presets.json');
       const resp = await fetch(url);
-      if (resp.ok) {
-        presets = await resp.json();
-        if (presets.length) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
-          return;
+      if (resp.ok) seed = await resp.json();
+    } catch { /* empty seed */ }
+
+    // 2. Load user overrides from localStorage
+    let saved = [];
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) saved = JSON.parse(raw);
+    } catch { /* empty saved */ }
+
+    // 3. Merge: seed is base, saved rules override by ID
+    if (!saved.length) {
+      presets = seed;
+    } else {
+      const merged = [...saved];
+      const mergedIds = new Set(merged.map(r => r.id));
+
+      // Add seed rules not yet in saved (new from seed file)
+      for (const s of seed) {
+        if (!mergedIds.has(s.id)) {
+          merged.push(s);
         }
       }
-    } catch { /* fall through to empty */ }
 
-    // 3. Ultimate fallback
-    presets = [];
+      presets = merged;
+    }
+
+    // Persist merged result so next startup sees consistent state
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
   }
 
   function savePresets() {
