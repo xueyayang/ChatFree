@@ -170,16 +170,8 @@ export function createEmbedSyncModule({ state, dom, utils }) {
 
   function updateStatus(mode) {
     const label = dom.backendLabel || 'AI';
-    if (mode === 'loading') {
-      dom.statusDot.className = 'waiting';
-      dom.statusText.textContent = label + ' — Loading...';
-    } else if (mode === 'connected') {
-      dom.statusDot.className = 'connected';
-      dom.statusText.textContent = label + ' (embed)';
-    } else {
-      dom.statusDot.className = 'disconnected';
-      dom.statusText.textContent = label + ' — Disconnected';
-    }
+    if (dom.statusDot) dom.statusDot.className = mode || '';
+    if (dom.statusText) dom.statusText.textContent = label + (mode === 'connected' ? ' (embed)' : mode === 'loading' ? ' — Loading...' : '');
   }
 
   // ---- Public API ----
