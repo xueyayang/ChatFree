@@ -27,6 +27,10 @@ const debugPanel = $('#debug-panel');
 const debugLog = $('#debug-log');
 const debugClear = $('#debug-clear');
 const panelSwitch = $('#panel-switch');
+const indicatorLeft = $('#indicator-left');
+const indicatorRight = $('#indicator-right');
+const indicatorStrip = $('#indicator-strip');
+const panelIndicators = { left: indicatorLeft, right: indicatorRight };
 
 // ---- Active modules ----
 const panelModules = { left: null, right: null };
@@ -68,6 +72,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   debugToggle.addEventListener('click', toggleDebugPanel);
   debugClear.addEventListener('click', clearDebugLog);
   document.getElementById('debug-copy').addEventListener('click', copyDebugLog);
+
+  // Panel indicators (click to switch active panel)
+  for (const side of ['left', 'right']) {
+    panelIndicators[side].addEventListener('mousedown', () => {
+      appendDebug('app', `indicator mousedown → activePanel: ${state.activePanel} → ${side}`);
+      if (state.activePanel !== side) {
+        state.activePanel = side;
+        updateIndicators();
+      }
+    });
+  }
 
   // Panel switch (center pill at indicator junction)
   panelSwitch.addEventListener('click', (e) => {
@@ -156,8 +171,9 @@ function renderLayout() {
 function updateIndicators() {
   for (const side of ['left', 'right']) {
     const mod = panelModules[side];
-    if (mod && mod.indicator) {
-      mod.indicator.classList.toggle('active', state.activePanel === side);
+    const indicator = panelIndicators[side];
+    if (indicator) {
+      indicator.classList.toggle('active', !!(mod && state.activePanel === side));
     }
   }
   // Update switch halves
@@ -181,27 +197,12 @@ function loadPanel(side, backend) {
 
   appendDebug('app', `Loading ${backend} in ${side} panel`);
 
-  const indicator = document.createElement('div');
-  indicator.className = 'panel-indicator';
-  if (state.activePanel === side) indicator.classList.add('active');
-
   const container = document.createElement('div');
   container.style.cssText = 'flex:1;min-height:0;position:relative;';
 
   panel.innerHTML = '';
-  panel.appendChild(indicator);
   panel.appendChild(container);
   panel.classList.remove('hidden');
-
-  const activate = () => {
-    appendDebug('app', `indicator mousedown → activePanel: ${state.activePanel} → ${side}`);
-    if (state.activePanel !== side) {
-      state.activePanel = side;
-      updateIndicators();
-    }
-  };
-  indicator.addEventListener('mousedown', activate);
-  panel._indicatorActivate = activate;
 
   const panelDom = makePanelDom(backend, container);
   const module = createEmbedSyncModule({
@@ -211,6 +212,7 @@ function loadPanel(side, backend) {
   });
 
   module.init();
+  const indicator = panelIndicators[side];
   panelModules[side] = { module, backend, indicator };
 }
 
@@ -229,6 +231,7 @@ function unloadPanel(side) {
 function toggleDebugPanel() {
   const visible = debugPanel.classList.toggle('hidden');
   debugToggle.classList.toggle('active', !visible);
+  indicatorStrip.style.right = visible ? '340px' : '0';
 }
 
 function clearDebugLog() {

@@ -859,8 +859,8 @@ body {
 }
 
 .panel-indicator {
-  height: 2px;
-  flex-shrink: 0;
+  flex: 1;
+  min-width: 0;
   background: #2d323c;
   cursor: pointer;
   transition: background 0.3s, box-shadow 0.3s;
@@ -873,7 +873,22 @@ body {
 
 .panel-indicator.active {
   background: #00d4ff;
-  box-shadow: 0 0 4px rgba(0, 212, 255, 0.8), 0 0 10px rgba(0, 212, 255, 0.4), 0 0 18px rgba(0, 212, 255, 0.2);
+  box-shadow: 0 -2px 6px rgba(0, 212, 255, 0.8), 0 -6px 14px rgba(0, 212, 255, 0.4), 0 -10px 22px rgba(0, 212, 255, 0.2);
+}
+
+/* ---- Indicator strip (top of main-area, dark background behind glow) ---- */
+#indicator-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  display: flex;
+  z-index: 5;
+}
+
+#main-area:has(#debug-panel:not(.hidden)) #indicator-strip {
+  right: 340px;
 }
 
 /* ---- Panel switch (water-drop at indicator junction) ---- */
