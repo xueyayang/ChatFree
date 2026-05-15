@@ -3,15 +3,13 @@
 // Composes preset-panel.js and exposes composed text (rules + user input) for sending.
 //
 // Interface: createInputAreaModule({ container, state, utils })
-//   → { init, getComposedText, clear, setEnabled, onSend, onSync, onTest, dom }
+//   → { init, getComposedText, clear, setEnabled, onSend, dom }
 
 import { createPresetPanel } from './preset-panel.js';
 
 export function createInputAreaModule({ container, state, utils }) {
-  let inputEl, sendBtn, syncBtn, testBtn, presetPanel;
+  let inputEl, sendBtn, presetPanel;
   const sendCallbacks = [];
-  const syncCallbacks = [];
-  const testCallbacks = [];
 
   function init() {
     buildUI();
@@ -23,11 +21,9 @@ export function createInputAreaModule({ container, state, utils }) {
       <div id="input-layout">
         <div id="preset-panel"></div>
         <div id="input-main">
-          <textarea id="message-input" placeholder="Type a message..." rows="3" disabled></textarea>
+          <textarea id="message-input" placeholder="Type a message..." disabled></textarea>
           <div id="input-buttons">
             <button id="send-btn" disabled>Send</button>
-            <button id="sync-btn" title="Reload iframe">Sync</button>
-            <button id="test-btn" title="Test connection">Test</button>
           </div>
         </div>
       </div>
@@ -35,8 +31,6 @@ export function createInputAreaModule({ container, state, utils }) {
 
     inputEl = document.getElementById('message-input');
     sendBtn = document.getElementById('send-btn');
-    syncBtn = document.getElementById('sync-btn');
-    testBtn = document.getElementById('test-btn');
 
     sendBtn.addEventListener('click', () => {
       const text = getComposedText();
@@ -51,13 +45,6 @@ export function createInputAreaModule({ container, state, utils }) {
       }
     });
 
-    syncBtn.addEventListener('click', () => {
-      syncCallbacks.forEach(cb => cb());
-    });
-
-    testBtn.addEventListener('click', () => {
-      testCallbacks.forEach(cb => cb());
-    });
   }
 
   function getComposedText() {
@@ -81,15 +68,11 @@ export function createInputAreaModule({ container, state, utils }) {
   }
 
   function onSend(callback) { sendCallbacks.push(callback); }
-  function onSync(callback) { syncCallbacks.push(callback); }
-  function onTest(callback) { testCallbacks.push(callback); }
 
   const dom = {
     get inputEl() { return inputEl; },
     get sendBtn() { return sendBtn; },
-    get testBtn() { return testBtn; },
-    get syncBtn() { return syncBtn; },
   };
 
-  return { init, getComposedText, clear, setEnabled, onSend, onSync, onTest, dom };
+  return { init, getComposedText, clear, setEnabled, onSend, dom };
 }

@@ -56,15 +56,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (syncModule) syncModule.send(text);
   });
 
-  inputModule.onSync(() => {
-    if (syncModule) syncModule.sync();
-  });
-
-  inputModule.onTest(runTestPing);
-
   backendSelect.addEventListener('change', onBackendChange);
   debugToggle.addEventListener('click', toggleDebugPanel);
   debugClear.addEventListener('click', clearDebugLog);
+  document.getElementById('debug-copy').addEventListener('click', copyDebugLog);
 
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg.type === 'debug') {
@@ -103,6 +98,25 @@ function toggleDebugPanel() {
 
 function clearDebugLog() {
   debugLog.innerHTML = '<div class="debug-empty">Log cleared</div>';
+}
+
+function copyDebugLog() {
+  const entries = debugLog.querySelectorAll('.debug-entry');
+  const lines = [];
+  entries.forEach(entry => {
+    const time = entry.querySelector('.debug-time')?.textContent || '';
+    const source = entry.querySelector('.debug-source')?.textContent || '';
+    const msg = entry.querySelector('.debug-msg')?.textContent || '';
+    lines.push(`${time} [${source}] ${msg}`);
+  });
+  const text = lines.join('\n');
+  if (text) {
+    navigator.clipboard.writeText(text).then(() => {
+      appendDebug('app', 'Debug log copied to clipboard');
+    }).catch(() => {
+      appendDebug('app', 'Failed to copy debug log', 'err');
+    });
+  }
 }
 
 function appendDebug(source, msg, level) {
@@ -160,27 +174,3 @@ async function checkLoginStatus() {
   }
 }
 
-// ---- Test button ----
-async function runTestPing() {
-  const btn = inputModule.dom.testBtn;
-  btn.disabled = true;
-  btn.textContent = '...';
-
-  appendDebug('app', 'Pinging ' + state.backend + '...');
-
-  try {
-    const result = await chrome.runtime.sendMessage({ action: 'ping', backend: state.backend });
-
-    if (result.error) {
-      appendDebug('app', 'Ping FAILED: ' + result.error, 'err');
-    } else {
-      const p = result.page || {};
-      appendDebug('app', 'Ping OK: ' + p.url + ' session=' + (p.sessionId || 'none') + ' md=' + p.markdownCount);
-    }
-  } catch (err) {
-    appendDebug('app', 'Ping error: ' + err.message, 'err');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Test';
-  }
-}

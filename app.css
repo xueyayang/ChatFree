@@ -598,9 +598,9 @@ body {
 #input-main {
   flex: 1;
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 8px;
-  padding: 12px 14px;
+  padding: 6px 8px;
   min-width: 0;
 }
 
@@ -609,18 +609,19 @@ body {
   resize: none;
   padding: 8px 12px;
   border-radius: 10px;
-  border: 1px solid #3a3f4b;
+  border: 1px solid #0891b2;
   background: #161b22;
   color: #e1e5eb;
   font-family: inherit;
   font-size: 13px;
   line-height: 1.4;
   outline: none;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 #message-input:focus {
-  border-color: #539bf5;
+  border-color: #06b6d4;
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
 }
 
 #message-input:disabled {
@@ -634,7 +635,7 @@ body {
 
 #input-buttons {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 6px;
   flex-shrink: 0;
 }
@@ -662,55 +663,6 @@ body {
 #send-btn:disabled {
   background: #21262d;
   color: #3a3f4b;
-  cursor: not-allowed;
-}
-
-#sync-btn {
-  padding: 0 10px;
-  height: 36px;
-  border: 1px solid #36854d;
-  border-radius: 10px;
-  background: #2d5a3d;
-  color: #7ee787;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-
-#sync-btn:hover:not(:disabled) {
-  background: #36854d;
-}
-
-#sync-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-#test-btn {
-  padding: 0 10px;
-  height: 36px;
-  border: 1px solid #3a3f4b;
-  border-radius: 10px;
-  background: #161b22;
-  color: #99a1b3;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-
-#test-btn:hover:not(:disabled) {
-  border-color: #539bf5;
-  color: #e1e5eb;
-}
-
-#test-btn:disabled {
-  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -744,6 +696,28 @@ body {
   color: #99a1b3;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+#debug-header-actions {
+  display: flex;
+  gap: 6px;
+}
+
+#debug-copy {
+  padding: 2px 8px;
+  border: 1px solid #3a3f4b;
+  border-radius: 4px;
+  background: transparent;
+  color: #99a1b3;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#debug-copy:hover {
+  border-color: #539bf5;
+  color: #e1e5eb;
 }
 
 #debug-clear {
