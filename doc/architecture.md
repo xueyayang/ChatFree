@@ -73,7 +73,7 @@ ChatFree/
 ├── content_doubao.js       # 豆包站点最后一公里（当前为占位）
 ├── content_chatgpt.js      # ChatGPT 完整内容脚本（未迁移到新架构）
 ├── data/
-│   └── presets.json          # 预设规则种子数据（启动时 fetch 加载）
+│   └── 定制规则.json          # 预设规则种子数据（启动时 fetch 加载）
 ├── modules/
 │   ├── sync-embed.js       # Embed 同步模块 —— iframe 生命周期管理
 │   ├── input-area.js       # 输入区域模块 —— 左右分栏布局、发送组合
@@ -133,26 +133,35 @@ ChatFree/
 **接口**：`createPresetPanel({ container })` → `{ getActiveRulesText, onChange, getPresets }`
 
 **数据模型**：纯内存，浏览器内置能力。
-1. **启动**：`fetch(data/presets.json)` → 内存 → 渲染 UI
+1. **启动**：`fetch(data/定制规则.json)` → 内存 → 渲染 UI
 2. **编辑**：`<dialog>` 弹窗（名称 + 文本表单）→ 修改内存 → 重新渲染
-3. **关闭**：`beforeunload` 检测修改 → 自动触发下载 `presets.json` + 浏览器"离开?"对话框
-4. **用户替换** `data/presets.json` → 重启生效
+3. **关闭**：`beforeunload` 检测修改 → 自动触发下载 `定制规则.json` + 浏览器"离开?"对话框
+4. **用户替换** `data/定制规则.json` → 重启生效
 
 > **说明**：Chrome 扩展无法运行时写入安装目录。用 `<dialog>`（浏览器内置）代替 `prompt()`，用 `beforeunload` 自动下载代替手动 💾 按钮。数据流：`文件 → fetch → 内存 → dialog 编辑 → beforeunload 下载 → 用户替换文件`。
 
-**默认规则**：`data/presets.json` 内置 3 个规则作为起点：
-| 规则 | 文本 |
+**默认规则**：`data/定制规则.json` 内置 12 个规则作为起点：
+| 规则 | 说明 |
 |------|------|
-| Skip pleasantries | 请直接给出答案，不要寒暄客套… |
-| Code best practices | 代码请使用最佳实践… |
-| Reply in Chinese | 请用中文回答。 |
+| Skip pleasantries | 直接给出答案，不要寒暄客套 |
+| 直击要点 | 先核心答案，再细节补充 |
+| 简洁回答 | 一段话讲清楚，避免冗长 |
+| 逐步推理 | 复杂问题先分析再给出方案 |
+| 中文优先 | 使用中文回答 |
+| 避免过度设计 | 保持简单，不过度抽象 |
+| 代码最佳实践 | 注重可读性、可维护性 |
+| 错误处理 | 边界条件检查 |
+| 安全编码 | 避免 XSS/SQL/命令注入 |
+| 使用最新 API | 避免已弃用方法 |
+| 代码格式 | 语言标记 + 一致缩进 |
+| 提供示例 | 具体代码而非抽象描述 |
 
 **UI 交互**：
 - 每条规则显示 checkbox + 标签名 + 灰色规则文本预览
 - 新增/编辑：弹出浏览器内置 `<dialog>`，含名称 input + 文本 textarea，保存/取消按钮
 - hover 时显示 ✎ 编辑按钮
 - 右键 → `confirm()` 确认删除
-- 关闭页签时 `beforeunload` 检测修改 → 自动下载 `presets.json` 文件
+- 关闭页签时 `beforeunload` 检测修改 → 自动下载 `定制规则.json` 文件
 
 ### 4. sync-embed.js — Embed 同步模块
 

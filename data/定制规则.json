@@ -1,0 +1,62 @@
+[
+  {
+    "label": "Skip pleasantries(跳过寒暄)",
+    "text": "请直接给出答案，不要寒暄客套，不要说「好的」「明白了」「希望对你有帮助」等多余的话。",
+    "enabled": true
+  },
+  {
+    "label": "直击要点(Get to the Point)",
+    "text": "先给出核心答案或结论，再补充细节解释，避免背景铺垫。",
+    "enabled": true
+  },
+  {
+    "label": "简洁回答(Be Concise)",
+    "text": "回答简洁明了，避免重复和冗长解释。一个问题一段话讲清楚即可。",
+    "enabled": true
+  },
+  {
+    "label": "逐步推理(Step Reasoning)",
+    "text": "遇到复杂问题请逐步分析推理，展示思考过程，再给出最终方案。",
+    "enabled": true
+  },
+  {
+    "label": "中文优先(Chinese First)",
+    "text": "使用中文回答。",
+    "enabled": true
+  },
+  {
+    "label": "避免过度设计(Avoid Overengineering)",
+    "text": "保持方案简单直接，只解决当前问题，不过度抽象，不引入不必要的依赖。",
+    "enabled": true
+  },
+  {
+    "label": "代码最佳实践(Code Best Practices)",
+    "text": "代码请遵循最佳实践，注重可读性、可维护性和性能。",
+    "enabled": false
+  },
+  {
+    "label": "错误处理(Error Handling)",
+    "text": "代码必须包含适当的错误处理和边界条件检查，不要假设一切正常。",
+    "enabled": false
+  },
+  {
+    "label": "安全编码(Secure Coding)",
+    "text": "避免安全漏洞：XSS、SQL注入、命令注入、敏感信息泄露。对所有外部输入做验证。",
+    "enabled": false
+  },
+  {
+    "label": "使用最新API(Latest Stable API)",
+    "text": "使用最新稳定版本的技术和 API，避免使用已弃用或即将废弃的方法。",
+    "enabled": false
+  },
+  {
+    "label": "代码格式(Code Formatting)",
+    "text": "代码块标注正确的语言类型，使用一致的缩进风格，输出结构清晰。",
+    "enabled": false
+  },
+  {
+    "label": "提供示例(Provide Examples)",
+    "text": "尽可能提供具体的代码示例或实际用例，而非仅给出抽象描述。",
+    "enabled": false
+  }
+]

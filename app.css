@@ -143,6 +143,7 @@ body {
 #preset-panel {
   width: 42%;
   min-width: 220px;
+  max-height: 180px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;

@@ -1,7 +1,7 @@
 // modules/preset-panel.js
 // Preset rules panel — toggle-able instruction rules prepended to AI messages.
 //
-// Storage: localStorage as primary store, data/presets.json as seed (first launch).
+// Storage: localStorage as primary store, data/定制规则.json as seed (first launch).
 // Normal view: read-only. Edit mode: full CRUD via edit dialog.
 //
 // Interface: createPresetPanel({ container }) → { getActiveRulesText, onChange }
@@ -27,9 +27,9 @@ export function createPresetPanel({ container }) {
       } catch { /* fall through */ }
     }
 
-    // 2) Seed from data/presets.json
+    // 2) Seed from data/定制规则.json
     try {
-      const url = chrome.runtime.getURL('data/presets.json');
+      const url = chrome.runtime.getURL('data/定制规则.json');
       const resp = await fetch(url);
       if (resp.ok) {
         presets = await resp.json();
@@ -51,7 +51,7 @@ export function createPresetPanel({ container }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'presets.json';
+    a.download = '定制规则.json';
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -128,7 +128,6 @@ export function createPresetPanel({ container }) {
         target[editingIndex].text = text;
       } else {
         target.push({
-          id: 'p' + Date.now(),
           label,
           text,
           enabled: true
@@ -217,7 +216,7 @@ export function createPresetPanel({ container }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'presets.json';
+      a.download = '定制规则.json';
       a.click();
       URL.revokeObjectURL(url);
     });
@@ -319,7 +318,7 @@ export function createPresetPanel({ container }) {
 
     const title = document.createElement('span');
     title.id = 'preset-title';
-    title.textContent = 'Rules';
+    title.textContent = '领导指示';
     header.appendChild(title);
 
     const editBtn = document.createElement('button');
