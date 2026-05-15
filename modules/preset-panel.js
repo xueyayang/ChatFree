@@ -1,8 +1,10 @@
 // modules/preset-panel.js
 // Preset rules panel — toggle-able instruction rules prepended to AI messages.
-// Standalone module: manages its own DOM, state, and persistence.
 //
-// Interface: createPresetPanel({ container }) → { getActiveRulesText, onChange, getPresets }
+// Data flow: localStorage is the working copy. On first launch, seed from
+// data/presets.json. Every edit writes localStorage then re-renders UI.
+//
+// Interface: createPresetPanel({ container }) → { getActiveRulesText, onChange }
 
 const STORAGE_KEY = 'chatfree_presets';
 
@@ -11,49 +13,35 @@ export function createPresetPanel({ container }) {
   const changeCallbacks = [];
   let _fileInput = null;
 
+  // ---- Data ----
   async function loadPresets() {
-    // 1. Always load seed from bundled JSON file (canonical base)
-    let seed = [];
+    // 1. localStorage — the working copy
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved.length) { presets = saved; return; }
+      }
+    } catch { /* fall through */ }
+
+    // 2. First launch — seed from bundled file
     try {
       const url = chrome.runtime.getURL('data/presets.json');
       const resp = await fetch(url);
-      if (resp.ok) seed = await resp.json();
-    } catch { /* empty seed */ }
-
-    // 2. Load user overrides from localStorage
-    let saved = [];
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) saved = JSON.parse(raw);
-    } catch { /* empty saved */ }
-
-    // 3. Merge: seed is base, saved rules override by ID
-    if (!saved.length) {
-      presets = seed;
-    } else {
-      const merged = [...saved];
-      const mergedIds = new Set(merged.map(r => r.id));
-
-      // Add seed rules not yet in saved (new from seed file)
-      for (const s of seed) {
-        if (!mergedIds.has(s.id)) {
-          merged.push(s);
+      if (resp.ok) {
+        presets = await resp.json();
+        if (presets.length) {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+          return;
         }
       }
+    } catch { /* fall through */ }
 
-      presets = merged;
-    }
-
-    // Persist merged result so next startup sees consistent state
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+    presets = [];
   }
 
-  function savePresets() {
+  function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
-    notifyChange();
-  }
-
-  function notifyChange() {
     changeCallbacks.forEach(cb => cb(presets));
   }
 
@@ -61,6 +49,7 @@ export function createPresetPanel({ container }) {
     return presets.filter(p => p.enabled).map(p => p.text).join('\n');
   }
 
+  // ---- Render ----
   function render() {
     container.innerHTML = '';
 
@@ -76,22 +65,22 @@ export function createPresetPanel({ container }) {
     const addBtn = document.createElement('button');
     addBtn.id = 'preset-add-btn';
     addBtn.textContent = '+';
-    addBtn.title = 'Add rule';
+    addBtn.title = '添加规则';
     addBtn.addEventListener('click', addPreset);
     header.appendChild(addBtn);
 
-    const loadBtn = document.createElement('button');
-    loadBtn.id = 'preset-load-btn';
-    loadBtn.textContent = '\u{1F4C2}';
-    loadBtn.title = 'Load from file';
-    loadBtn.addEventListener('click', () => _fileInput.click());
-    header.appendChild(loadBtn);
+    const fileBtn = document.createElement('button');
+    fileBtn.id = 'preset-load-btn';
+    fileBtn.textContent = '\u{1F4C2}';
+    fileBtn.title = '导入/导出 JSON 文件';
+    fileBtn.addEventListener('click', () => _fileInput.click());
+    header.appendChild(fileBtn);
 
     _fileInput = document.createElement('input');
     _fileInput.type = 'file';
-    _fileInput.accept = '.json,.txt';
+    _fileInput.accept = '.json';
     _fileInput.hidden = true;
-    _fileInput.addEventListener('change', handleFileSelect);
+    _fileInput.addEventListener('change', handleImport);
     header.appendChild(_fileInput);
 
     container.appendChild(header);
@@ -103,30 +92,28 @@ export function createPresetPanel({ container }) {
     if (!presets.length) {
       const empty = document.createElement('div');
       empty.className = 'preset-empty';
-      empty.textContent = 'No rules yet. Click + to add.';
+      empty.textContent = '暂无规则。点 + 添加。';
       list.appendChild(empty);
     } else {
-      presets.forEach((preset, i) => {
-        list.appendChild(createPresetItem(preset, i));
-      });
+      presets.forEach((p, i) => list.appendChild(createItem(p, i)));
     }
 
     container.appendChild(list);
   }
 
-  function createPresetItem(preset, index) {
+  function createItem(preset, index) {
     const item = document.createElement('div');
     item.className = 'preset-item' + (preset.enabled ? ' active' : '');
 
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.checked = preset.enabled;
-    checkbox.addEventListener('change', () => {
-      presets[index].enabled = checkbox.checked;
-      item.classList.toggle('active', checkbox.checked);
-      savePresets();
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = preset.enabled;
+    cb.addEventListener('change', () => {
+      presets[index].enabled = cb.checked;
+      item.classList.toggle('active', cb.checked);
+      save();
     });
-    item.appendChild(checkbox);
+    item.appendChild(cb);
 
     const body = document.createElement('div');
     body.className = 'preset-body';
@@ -143,6 +130,7 @@ export function createPresetPanel({ container }) {
 
     item.appendChild(body);
 
+    // Edit button (hover)
     const actions = document.createElement('div');
     actions.className = 'preset-actions';
 
@@ -158,14 +146,12 @@ export function createPresetPanel({ container }) {
 
     item.appendChild(actions);
 
-    // Right-click to delete
+    // Right-click → delete
     item.addEventListener('contextmenu', (e) => {
       e.preventDefault();
-      e.stopPropagation();
-      const ok = confirm('删除规则 "' + preset.label + '"?');
-      if (ok) {
+      if (confirm('删除 "' + preset.label + '"?')) {
         presets.splice(index, 1);
-        savePresets();
+        save();
         render();
       }
     });
@@ -173,10 +159,11 @@ export function createPresetPanel({ container }) {
     return item;
   }
 
+  // ---- Edit operations (save + re-render) ----
   function addPreset() {
-    const label = prompt('规则名称（显示在左侧面板）:');
+    const label = prompt('规则名称（显示标签）:');
     if (!label || !label.trim()) return;
-    const text = prompt('规则文本（将附加在每次发送的消息前面）:');
+    const text = prompt('规则文本（附加到消息前）:');
     if (!text || !text.trim()) return;
 
     presets.push({
@@ -185,24 +172,25 @@ export function createPresetPanel({ container }) {
       text: text.trim(),
       enabled: true
     });
-    savePresets();
+    save();
     render();
   }
 
   function editPreset(index) {
-    const preset = presets[index];
-    const label = prompt('规则名称:', preset.label);
+    const p = presets[index];
+    const label = prompt('规则名称:', p.label);
     if (label === null) return;
-    const text = prompt('规则文本:', preset.text);
+    const text = prompt('规则文本:', p.text);
     if (text === null) return;
 
-    if (label.trim()) preset.label = label.trim();
-    if (text.trim()) preset.text = text.trim();
-    savePresets();
+    if (label.trim()) p.label = label.trim();
+    if (text.trim()) p.text = text.trim();
+    save();
     render();
   }
 
-  function handleFileSelect(event) {
+  // ---- Import (📂 button) ----
+  function handleImport(event) {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -210,14 +198,11 @@ export function createPresetPanel({ container }) {
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target.result);
-        let imported = [];
-        if (Array.isArray(data)) {
-          imported = data;
-        } else if (data.presets && Array.isArray(data.presets)) {
-          imported = data.presets;
-        } else {
-          throw new Error('Expected array or { presets: [...] }');
-        }
+        const imported = Array.isArray(data) ? data
+          : (data.presets && Array.isArray(data.presets)) ? data.presets
+          : null;
+        if (!imported) throw new Error('格式错误：需要 JSON 数组');
+
         imported.forEach((item, i) => {
           presets.push({
             id: 'p' + Date.now() + '_' + i,
@@ -226,10 +211,10 @@ export function createPresetPanel({ container }) {
             enabled: item.enabled !== false
           });
         });
-        savePresets();
+        save();
         render();
       } catch (err) {
-        alert('Failed to parse file: ' + err.message);
+        alert('导入失败: ' + err.message);
       }
     };
     reader.readAsText(file);
@@ -240,7 +225,7 @@ export function createPresetPanel({ container }) {
     changeCallbacks.push(callback);
   }
 
-  // Init — async: tries localStorage first, then fetches bundled JSON
+  // Init
   const initPromise = loadPresets().then(() => render());
 
   return { getActiveRulesText, onChange, getPresets: () => presets, initPromise };
