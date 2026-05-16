@@ -88,7 +88,113 @@
   }
 
   // ============================================================
-  // Input: find / fill / send
+  // Pluggable input helpers — resolved once from adapter or default
+  // ============================================================
+  const fillInput = A.fillInput || defaultFillInput;
+  const isCleared = A.isCleared || defaultIsCleared;
+  const trySend   = A.trySend   || defaultTrySend;
+
+  // ---- Default: fill input (textarea / input[type=text]) ----
+  async function defaultFillInput(input, message) {
+    if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      const nativeSetter =
+        Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set ||
+        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
+      if (nativeSetter) {
+        nativeSetter.call(input, message);
+      } else {
+        input.value = message;
+      }
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+  }
+
+  // ---- Default: detect cleared input (textarea / input) ----
+  function defaultIsCleared(input) {
+    return (input.value || '') === '';
+  }
+
+  // ---- Default: trigger send (Enter → buttons → Ctrl+Enter → bottom buttons) ----
+  async function defaultTrySend(input, helpers) {
+    const { waitForSend, sleep: slp, dbg: log } = helpers;
+    const t0 = Date.now();
+    await slp(200);
+
+    // Enter key — primary trigger for most chat UIs
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+      bubbles: true, cancelable: true, composed: true
+    }));
+    input.dispatchEvent(new KeyboardEvent('keypress', {
+      key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+      bubbles: true, cancelable: true, composed: true
+    }));
+    if (await waitForSend(input, 'Enter')) { log('trySend: Enter worked +' + (Date.now() - t0) + 'ms'); return true; }
+
+    // Nearby visible, enabled buttons
+    const inputRect = input.getBoundingClientRect();
+    const allBtns = document.querySelectorAll('button');
+    for (const btn of allBtns) {
+      if (!btn.offsetParent || btn.disabled) continue;
+      const rect = btn.getBoundingClientRect();
+      if (Math.abs(rect.bottom - inputRect.bottom) < 150) {
+        btn.click();
+        if (await waitForSend(input, 'nearBtn')) { log('trySend: nearBtn worked +' + (Date.now() - t0) + 'ms'); return true; }
+      }
+    }
+
+    // SVG icon buttons in the bottom half (common send-button pattern)
+    for (const btn of allBtns) {
+      if (!btn.offsetParent || !btn.querySelector('svg')) continue;
+      const rect = btn.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight * 0.5 && rect.top < window.innerHeight) {
+        btn.click();
+        if (await waitForSend(input, 'svgBtn')) { log('trySend: svgBtn worked +' + (Date.now() - t0) + 'ms'); return true; }
+      }
+    }
+
+    // Ctrl+Enter alternative
+    input.focus();
+    input.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
+      ctrlKey: true, bubbles: true, cancelable: true, composed: true
+    }));
+    if (await waitForSend(input, 'Ctrl+Enter')) { log('trySend: Ctrl+Enter worked +' + (Date.now() - t0) + 'ms'); return true; }
+
+    // Any bottom-half enabled button (last resort)
+    for (const btn of allBtns) {
+      if (!btn.offsetParent || btn.disabled) continue;
+      const rect = btn.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight * 0.55 && rect.top < window.innerHeight) {
+        btn.click();
+        if (await waitForSend(input, 'bottomBtn')) { log('trySend: bottomBtn worked +' + (Date.now() - t0) + 'ms'); return true; }
+      }
+    }
+
+    log('trySend: all methods failed +' + (Date.now() - t0) + 'ms');
+    return false;
+  }
+
+  // ---- waitForSend polls isCleared (resolved from adapter) ----
+  async function waitForSend(input, label) {
+    const t0 = Date.now();
+    for (let i = 0; i < 10; i++) {
+      await sleep(200);
+      if (isCleared(input) || input.disabled) {
+        dbg(`waitForSend[${label}]: cleared after ${Date.now() - t0}ms (iter ${i + 1})`);
+        return true;
+      }
+    }
+    dbg(`waitForSend[${label}]: timeout after ${Date.now() - t0}ms`);
+    return false;
+  }
+
+  // ============================================================
+  // Input: find
   // ============================================================
   function findInput(checkVisible) {
     if (checkVisible === undefined) checkVisible = true;
@@ -108,99 +214,9 @@
     return null;
   }
 
-  function fillInput(input, message) {
-    if (input.tagName === 'TEXTAREA' || input.tagName === 'INPUT') {
-      input.value = '';
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      const nativeSetter =
-        Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set ||
-        Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value')?.set;
-      if (nativeSetter) {
-        nativeSetter.call(input, message);
-      } else {
-        input.value = message;
-      }
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.dispatchEvent(new Event('change', { bubbles: true }));
-    } else if (input.getAttribute('contenteditable') === 'true') {
-      input.textContent = message;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-  }
-
-  async function waitForSend(input, label) {
-    const t0 = Date.now();
-    for (let i = 0; i < 10; i++) {
-      await sleep(200);
-      if (input.value === '' || input.disabled) {
-        dbg(`waitForSend[${label}]: cleared after ${Date.now() - t0}ms (iter ${i + 1})`);
-        return true;
-      }
-    }
-    dbg(`waitForSend[${label}]: timeout after ${Date.now() - t0}ms`);
-    return false;
-  }
-
-  async function trySend(input) {
-    const t0 = Date.now();
-    await sleep(200);
-
-    // Enter key — primary trigger for most chat UIs
-    input.focus();
-    input.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-      bubbles: true, cancelable: true, composed: true
-    }));
-    input.dispatchEvent(new KeyboardEvent('keypress', {
-      key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-      bubbles: true, cancelable: true, composed: true
-    }));
-    if (await waitForSend(input, 'Enter')) { dbg(`trySend: Enter worked +${Date.now() - t0}ms`); return true; }
-
-    // Nearby visible, enabled buttons
-    const inputRect = input.getBoundingClientRect();
-    const allBtns = document.querySelectorAll('button');
-    for (const btn of allBtns) {
-      if (!btn.offsetParent || btn.disabled) continue;
-      const rect = btn.getBoundingClientRect();
-      if (Math.abs(rect.bottom - inputRect.bottom) < 150) {
-        btn.click();
-        if (await waitForSend(input, 'nearBtn')) { dbg(`trySend: nearBtn worked +${Date.now() - t0}ms`); return true; }
-      }
-    }
-
-    // SVG icon buttons in the bottom half (common send-button pattern)
-    for (const btn of allBtns) {
-      if (!btn.offsetParent || !btn.querySelector('svg')) continue;
-      const rect = btn.getBoundingClientRect();
-      if (rect.bottom > window.innerHeight * 0.5 && rect.top < window.innerHeight) {
-        btn.click();
-        if (await waitForSend(input, 'svgBtn')) { dbg(`trySend: svgBtn worked +${Date.now() - t0}ms`); return true; }
-      }
-    }
-
-    // Ctrl+Enter alternative
-    input.focus();
-    input.dispatchEvent(new KeyboardEvent('keydown', {
-      key: 'Enter', code: 'Enter', keyCode: 13, which: 13,
-      ctrlKey: true, bubbles: true, cancelable: true, composed: true
-    }));
-    if (await waitForSend(input, 'Ctrl+Enter')) { dbg(`trySend: Ctrl+Enter worked +${Date.now() - t0}ms`); return true; }
-
-    // Any bottom-half enabled button (last resort)
-    for (const btn of allBtns) {
-      if (!btn.offsetParent || btn.disabled) continue;
-      const rect = btn.getBoundingClientRect();
-      if (rect.bottom > window.innerHeight * 0.55 && rect.top < window.innerHeight) {
-        btn.click();
-        if (await waitForSend(input, 'bottomBtn')) { dbg(`trySend: bottomBtn worked +${Date.now() - t0}ms`); return true; }
-      }
-    }
-
-    dbg(`trySend: all methods failed +${Date.now() - t0}ms`);
-    return false;
-  }
-
+  // ============================================================
+  // doChatViaDOM — orchestrates fill + send
+  // ============================================================
   async function doChatViaDOM(message, requestId) {
     const t0 = Date.now();
     installSSEInterceptor();
@@ -228,12 +244,12 @@
 
     try {
       input.focus();
-      fillInput(input, message);
+      await fillInput(input, message);
       await sleep(300);
       dbg(`doChat: input filled +${Date.now() - t0}ms`);
 
       const tSend = Date.now();
-      const sent = await trySend(input);
+      const sent = await trySend(input, { waitForSend, sleep, dbg });
       if (!sent) throw new Error('Failed to send message');
       dbg(`doChat: message sent +${Date.now() - t0}ms (trySend took ${Date.now() - tSend}ms, requestId=${requestId})`);
     } finally {
@@ -387,8 +403,8 @@
     if (_hideTimer) clearTimeout(_hideTimer);
     _hideTimer = setTimeout(() => {
       _hideTimer = null;
-      const visibleInput = document.querySelector('textarea');
-      if (visibleInput && visibleInput.offsetParent !== null && document.contains(visibleInput)) {
+      const visibleInput = findInput(true);
+      if (visibleInput && document.contains(visibleInput)) {
         dbg('Embed: new visible input detected after DOM change, re-hiding');
         hideNativeInput();
       }
