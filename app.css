@@ -381,6 +381,12 @@ body {
   gap: 1px;
 }
 
+.preset-label-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
 .preset-label {
   font-size: 11px;
   color: #808896;
@@ -388,6 +394,17 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   transition: color 0.15s;
+}
+
+.preset-count {
+  font-size: 10px;
+  color: #a0a8b4;
+  background: #e8ecf0;
+  border-radius: 8px;
+  padding: 0 5px;
+  margin-left: 6px;
+  flex-shrink: 0;
+  align-self: flex-start;
 }
 
 .preset-text {

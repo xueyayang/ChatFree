@@ -16,6 +16,7 @@ export function createPresetPanel({ container }) {
   let editDialog = null;   // edit-mode dialog
   let editPresets = null;  // working copy during edit mode
   let editingIndex = -1;
+  let usageRecordedThisTick = false;
 
   // ---- Storage ----
   async function loadPresets() {
@@ -90,7 +91,21 @@ export function createPresetPanel({ container }) {
   }
 
   function getActiveRulesText() {
-    return presets.filter(p => p.enabled).map(p => p.text).join('\n');
+    const enabled = presets.filter(p => p.enabled);
+    if (enabled.length > 0 && !usageRecordedThisTick) {
+      enabled.forEach(p => { p.count = (p.count || 0) + 1; });
+      usageRecordedThisTick = true;
+      dirty = true;
+      sortByCount(presets);
+      saveToLocalStorage();
+      render();
+      Promise.resolve().then(() => { usageRecordedThisTick = false; });
+    }
+    return enabled.map(p => p.text).join('\n');
+  }
+
+  function sortByCount(arr) {
+    arr.sort((a, b) => (b.count || 0) - (a.count || 0));
   }
 
   // ---- Add/Edit dialog (nested) ----
@@ -131,7 +146,8 @@ export function createPresetPanel({ container }) {
         target.push({
           label,
           text,
-          enabled: true
+          enabled: true,
+          count: 0
         });
       }
       dialog.close();
@@ -241,6 +257,7 @@ export function createPresetPanel({ container }) {
 
   function renderEditList() {
     if (!editDialog) return;
+    sortByCount(editPresets);
     const list = editDialog.querySelector('#edit-list');
     list.innerHTML = '';
 
@@ -264,10 +281,20 @@ export function createPresetPanel({ container }) {
     const body = document.createElement('div');
     body.className = 'preset-body';
 
+    const labelRow = document.createElement('div');
+    labelRow.className = 'preset-label-row';
+
     const label = document.createElement('span');
     label.className = 'preset-label';
     label.textContent = preset.label;
-    body.appendChild(label);
+    labelRow.appendChild(label);
+
+    const count = document.createElement('span');
+    count.className = 'preset-count';
+    count.textContent = preset.count || 0;
+    labelRow.appendChild(count);
+
+    body.appendChild(labelRow);
 
     const text = document.createElement('span');
     text.className = 'preset-text';
@@ -369,6 +396,7 @@ export function createPresetPanel({ container }) {
   }
 
   function renderAllItems(list) {
+    sortByCount(presets);
     list.innerHTML = '';
 
     if (!presets.length) {
@@ -414,10 +442,20 @@ export function createPresetPanel({ container }) {
     const body = document.createElement('div');
     body.className = 'preset-body';
 
+    const labelRow = document.createElement('div');
+    labelRow.className = 'preset-label-row';
+
     const label = document.createElement('span');
     label.className = 'preset-label';
     label.textContent = preset.label;
-    body.appendChild(label);
+    labelRow.appendChild(label);
+
+    const count = document.createElement('span');
+    count.className = 'preset-count';
+    count.textContent = preset.count || 0;
+    labelRow.appendChild(count);
+
+    body.appendChild(labelRow);
 
     const text = document.createElement('span');
     text.className = 'preset-text';
