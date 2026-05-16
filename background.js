@@ -15,7 +15,7 @@ const BACKENDS = {
     checkLogin: checkDoubaoLogin
   },
   qianwen: {
-    base: 'https://tongyi.aliyun.com',
+    base: 'https://www.qianwen.com',
     checkLogin: checkQianwenLogin
   },
   gemini: {
@@ -114,18 +114,25 @@ async function checkDoubaoLogin() {
 
 async function checkQianwenLogin() {
   try {
-    const cookies = await chrome.cookies.getAll({ domain: 'tongyi.aliyun.com' });
-    const hasSession = cookies.some(c =>
-      c.name.includes('session') ||
-      c.name.includes('token') ||
-      c.name.includes('auth') ||
-      c.name.includes('login') ||
-      c.name.includes('aliyun') ||
-      (c.name === 'tpa_trust_security') ||
-      (c.value && c.value.length > 30 && c.name.includes('sid'))
-    );
-    debug('bg', 'Qianwen login check: ' + (hasSession ? 'connected' : 'disconnected') +
-      ' (' + cookies.length + ' cookies)');
+    let hasSession = false;
+    // Check both domains — login state may be on either
+    for (const domain of ['www.qianwen.com', 'tongyi.aliyun.com']) {
+      try {
+        const cookies = await chrome.cookies.getAll({ domain });
+        const ok = cookies.some(c =>
+          c.name.includes('session') ||
+          c.name.includes('token') ||
+          c.name.includes('auth') ||
+          c.name.includes('login') ||
+          c.name.includes('aliyun') ||
+          (c.name === 'tpa_trust_security') ||
+          (c.value && c.value.length > 30 && c.name.includes('sid'))
+        );
+        debug('bg', 'Qianwen login check (' + domain + '): ' + (ok ? 'connected' : 'disconnected') +
+          ' (' + cookies.length + ' cookies)');
+        if (ok) hasSession = true;
+      } catch (_) {}
+    }
     return { loggedIn: hasSession };
   } catch (e) {
     debug('bg', 'Qianwen login check failed: ' + e.message, 'err');
@@ -216,7 +223,7 @@ async function testConnectivity(site) {
     deepseek: 'https://chat.deepseek.com/',
     chatgpt: 'https://chatgpt.com/',
     doubao: 'https://www.doubao.com/chat/',
-    qianwen: 'https://tongyi.aliyun.com/',
+    qianwen: 'https://www.qianwen.com/',
     gemini: 'https://gemini.google.com/app'
   };
   const url = urls[site];

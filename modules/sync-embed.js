@@ -21,7 +21,7 @@ export function createEmbedSyncModule({ state, dom, utils }) {
     deepseek: 'https://chat.deepseek.com/',
     chatgpt: 'https://chatgpt.com/',
     doubao: 'https://www.doubao.com/chat/',
-    qianwen: 'https://tongyi.aliyun.com/',
+    qianwen: 'https://www.qianwen.com/',
     gemini: 'https://gemini.google.com/app'
   };
 
