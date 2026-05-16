@@ -10,7 +10,7 @@ const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT', doubao: 'è±†å
 
 // ---- Shared state ----
 const state = {
-  activeSites: ['deepseek', 'doubao'],  // ordered list, max 2. [0]=left, [1]=right
+  activeSites: ['doubao', 'qianwen'],  // ordered list, max 2. [0]=left, [1]=right
   activePanel: 'left',  // which panel receives input: 'left' | 'right'
   splitRatio: 0.5,  // left panel fraction of available width
   requestId: 0
