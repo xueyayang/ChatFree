@@ -66,6 +66,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (mod) mod.module.send(text);
   });
 
+  inputModule.onHistoryResend(({ composedText, targetPanel }) => {
+    const mod = panelModules[targetPanel];
+    if (mod) mod.module.send(composedText);
+  });
+
   // Site icon clicks
   siteIcons.forEach(icon => {
     icon.addEventListener('click', () => toggleSite(icon.dataset.site));

@@ -1,9 +1,10 @@
 // modules/history-panel.js
 // Floating history popover — stores sent messages in localStorage ring buffer.
-// Double-click item → fill textarea. "Resend→" button → fill + send immediately.
+// Double-click item → fill textarea. Resend button → send to opposite panel.
+// Thin vertical indicator lights show which side(s) each message was sent to.
 //
 // Interface: createHistoryPanel({ container, toggleBtn })
-//   → { init, record, show, hide, toggle, isVisible, onFill, onResend }
+//   → { init, record, show, hide, toggle, isVisible, onFill, onResend, markResent }
 
 const STORAGE_KEY = 'chatfree_history';
 const MAX_ENTRIES = 100;
@@ -35,14 +36,22 @@ export function createHistoryPanel({ container, toggleBtn }) {
     }
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    } catch (_) { /* storage full, drop oldest */ }
+    } catch (_) { /* storage full */ }
   }
 
-  function record(text, targetSite) {
+  function record(text, targetSite, targetPanel) {
     if (!text) return;
-    if (entries.length > 0 && entries[0].text === text && entries[0].targetSite === targetSite) return;
+    if (entries.length > 0 && entries[0].text === text && entries[0].targetPanel === targetPanel) return;
 
-    entries.unshift({ text, timestamp: Date.now(), targetSite });
+    entries.unshift({ text, timestamp: Date.now(), targetSite, targetPanel, resentTo: null });
+    save();
+    if (visible) render();
+  }
+
+  function markResent(timestamp) {
+    const entry = entries.find(e => e.timestamp === timestamp);
+    if (!entry) return;
+    entry.resentTo = entry.targetPanel === 'left' ? 'right' : 'left';
     save();
     if (visible) render();
   }
@@ -89,27 +98,35 @@ export function createHistoryPanel({ container, toggleBtn }) {
       return;
     }
 
-    list.innerHTML = entries.map((entry, i) => {
+    list.innerHTML = entries.map((entry, _i) => {
       const time = new Date(entry.timestamp).toLocaleTimeString('en-GB', {
         hour: '2-digit', minute: '2-digit'
       });
-      const preview = entry.text.length > 70 ? entry.text.slice(0, 70) + '…' : entry.text;
+      const preview = entry.text.length > 60 ? entry.text.slice(0, 60) + '…' : entry.text;
       const siteLabel = entry.targetSite || '';
+      const sentLeft = entry.targetPanel === 'left' || entry.resentTo === 'left';
+      const sentRight = entry.targetPanel === 'right' || entry.resentTo === 'right';
+      const sentToBoth = sentLeft && sentRight;
       return `
-        <div class="history-item" data-index="${i}">
+        <div class="history-item" data-ts="${entry.timestamp}">
           <span class="history-time">${time}</span>
           ${siteLabel ? `<span class="history-site">${esc(siteLabel)}</span>` : ''}
           <span class="history-text" title="${esc(entry.text)}">${esc(preview)}</span>
-          <button class="history-resend" data-index="${i}">Resend→</button>
+          <span class="history-lights">
+            <span class="history-light left${sentLeft ? ' on' : ''}"></span>
+            <span class="history-light right${sentRight ? ' on' : ''}"></span>
+          </span>
+          ${sentToBoth ? '' : `<button class="history-resend" data-ts="${entry.timestamp}">↗</button>`}
         </div>
       `;
     }).join('');
 
     list.querySelectorAll('.history-item').forEach(item => {
       item.addEventListener('dblclick', () => {
-        const i = parseInt(item.dataset.index);
-        if (entries[i]) {
-          fillCallbacks.forEach(cb => cb(entries[i].text));
+        const ts = parseInt(item.dataset.ts);
+        const entry = entries.find(e => e.timestamp === ts);
+        if (entry) {
+          fillCallbacks.forEach(cb => cb(entry.text));
           hide();
         }
       });
@@ -118,10 +135,11 @@ export function createHistoryPanel({ container, toggleBtn }) {
     list.querySelectorAll('.history-resend').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const i = parseInt(btn.dataset.index);
-        if (entries[i]) {
-          resendCallbacks.forEach(cb => cb(entries[i].text));
-          hide();
+        const ts = parseInt(btn.dataset.ts);
+        const entry = entries.find(e => e.timestamp === ts);
+        if (entry) {
+          const opposite = entry.targetPanel === 'left' ? 'right' : 'left';
+          resendCallbacks.forEach(cb => cb({ entry, targetPanel: opposite }));
         }
       });
     });
@@ -149,7 +167,7 @@ export function createHistoryPanel({ container, toggleBtn }) {
   function onFill(cb) { fillCallbacks.push(cb); }
   function onResend(cb) { resendCallbacks.push(cb); }
 
-  return { init, record, show, hide, toggle, isVisible, onFill, onResend };
+  return { init, record, show, hide, toggle, isVisible, onFill, onResend, markResent };
 }
 
 function esc(s) {

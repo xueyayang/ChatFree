@@ -3,7 +3,7 @@
 // Composes preset-panel.js and history-panel.js. Exposes composed text (rules + user input) for sending.
 //
 // Interface: createInputAreaModule({ container, state, utils })
-//   → { init, getComposedText, clear, setEnabled, onSend, dom }
+//   → { init, getComposedText, clear, setEnabled, onSend, onHistoryResend, dom }
 
 import { createPresetPanel } from './preset-panel.js';
 import { createHistoryPanel } from './history-panel.js';
@@ -11,6 +11,7 @@ import { createHistoryPanel } from './history-panel.js';
 export function createInputAreaModule({ container, state, utils }) {
   let inputEl, sendBtn, presetPanel, historyPanel;
   const sendCallbacks = [];
+  const historyResendCallbacks = [];
 
   function init() {
     buildUI();
@@ -26,11 +27,11 @@ export function createInputAreaModule({ container, state, utils }) {
       inputEl.focus();
     });
 
-    historyPanel.onResend((text) => {
-      inputEl.value = text;
-      const composed = getComposedText();
-      if (composed) sendCallbacks.forEach(cb => cb(composed));
-      inputEl.value = '';
+    historyPanel.onResend(({ entry, targetPanel }) => {
+      if (entry.text) {
+        historyResendCallbacks.forEach(cb => cb({ composedText: entry.text, targetPanel }));
+        historyPanel.markResent(entry.timestamp);
+      }
     });
   }
 
@@ -76,7 +77,6 @@ export function createInputAreaModule({ container, state, utils }) {
       }
     });
 
-    // Ctrl+H toggles history popover
     document.addEventListener('keydown', (e) => {
       if (e.ctrlKey && e.key === 'h') {
         e.preventDefault();
@@ -86,16 +86,15 @@ export function createInputAreaModule({ container, state, utils }) {
   }
 
   function recordToHistory() {
-    const userText = inputEl.value.trim();
-    if (!userText || !historyPanel) return;
+    const composed = getComposedText();
+    if (!composed || !historyPanel) return;
     const targetSite = state.activeSites[state.activePanel === 'left' ? 0 : 1] || '';
-    historyPanel.record(userText, targetSite);
+    historyPanel.record(composed, targetSite, state.activePanel);
   }
 
   function getComposedText() {
     const userText = inputEl.value.trim();
     if (!userText) return '';
-
     const rulesText = presetPanel ? presetPanel.getActiveRulesText() : '';
     if (rulesText) {
       return rulesText + '\n\n' + userText;
@@ -113,11 +112,12 @@ export function createInputAreaModule({ container, state, utils }) {
   }
 
   function onSend(callback) { sendCallbacks.push(callback); }
+  function onHistoryResend(callback) { historyResendCallbacks.push(callback); }
 
   const dom = {
     get inputEl() { return inputEl; },
     get sendBtn() { return sendBtn; },
   };
 
-  return { init, getComposedText, clear, setEnabled, onSend, dom };
+  return { init, getComposedText, clear, setEnabled, onSend, onHistoryResend, dom };
 }
