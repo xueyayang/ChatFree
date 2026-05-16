@@ -86,6 +86,34 @@ export function createEmbedSyncModule({ state, dom, utils }) {
     }
   }
 
+  // ---- Diagnose ----
+  function sendDiagnose() {
+    if (!_iframe || !_iframe.contentWindow) {
+      appendDebug('app', '[TEST] No iframe to diagnose', 'warn');
+      return;
+    }
+    const t0 = Date.now();
+    appendDebug('app', '[TEST] ====== Diagnosing ' + state.backend + ' ======');
+    appendDebug('app', '[TEST] Iframe src: ' + (_iframe.src || '(empty)'));
+    appendDebug('app', '[TEST] Iframe ready: ' + _ready);
+
+    // Send ping
+    try {
+      _iframe.contentWindow.postMessage({ type: 'chatfree-ping' }, '*');
+      appendDebug('app', '[TEST] Ping sent');
+    } catch (err) {
+      appendDebug('app', '[TEST] Ping failed: ' + err.message, 'err');
+    }
+
+    // Send full diagnose
+    try {
+      _iframe.contentWindow.postMessage({ type: 'chatfree-diagnose' }, '*');
+      appendDebug('app', '[TEST] Diagnose request sent +' + (Date.now() - t0) + 'ms');
+    } catch (err) {
+      appendDebug('app', '[TEST] Diagnose failed: ' + err.message, 'err');
+    }
+  }
+
   // ---- Internal ----
   function createIframe() {
     // Remove old iframe if present
@@ -165,6 +193,20 @@ export function createEmbedSyncModule({ state, dom, utils }) {
       else if (msg.type === 'chatfree-response-done') {
         appendDebug('app', 'Embed: response streaming finished');
       }
+
+      else if (msg.type === 'chatfree-pong') {
+        appendDebug('app', '[TEST] Pong received — content script is alive!');
+      }
+
+      else if (msg.type === 'chatfree-diagnose-result') {
+        appendDebug('app', '[TEST] Diagnose result from cs:');
+        if (msg.report) {
+          for (const [key, val] of Object.entries(msg.report)) {
+            appendDebug('app', '[TEST]   ' + key + ': ' + val);
+          }
+        }
+        appendDebug('app', '[TEST] ====== Diagnose complete for ' + state.backend + ' ======');
+      }
     });
   }
 
@@ -175,5 +217,5 @@ export function createEmbedSyncModule({ state, dom, utils }) {
   }
 
   // ---- Public API ----
-  return { init, sync, send, stop };
+  return { init, sync, send, stop, sendDiagnose };
 }

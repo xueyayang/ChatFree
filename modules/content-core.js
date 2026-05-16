@@ -12,15 +12,21 @@
   // Embed detection
   // ============================================================
   let IS_EMBEDDED = false;
+  let embedReason = 'top-level';
   if (window.top !== window.self) {
-    try { IS_EMBEDDED = window.name === 'chatfree_embed_v1'; } catch (_) {}
+    try { IS_EMBEDDED = window.name === 'chatfree_embed_v1'; if (IS_EMBEDDED) embedReason = 'window.name'; } catch (_) {}
     if (!IS_EMBEDDED) {
-      try { IS_EMBEDDED = window.location.hash.includes('chatfree-embed'); } catch (_) {}
+      try { IS_EMBEDDED = window.location.hash.includes('chatfree-embed'); if (IS_EMBEDDED) embedReason = 'hash'; } catch (_) {}
     }
     if (!IS_EMBEDDED) {
-      try { IS_EMBEDDED = document.referrer.startsWith('chrome-extension://'); } catch (_) {}
+      try { IS_EMBEDDED = document.referrer.startsWith('chrome-extension://'); if (IS_EMBEDDED) embedReason = 'referrer'; } catch (_) {}
     }
   }
+
+  // Helper: log once we have a working dbg function (set after adapter check)
+  let _earlyLogs = [];
+  function earlyLog(msg, level) { _earlyLogs.push({ msg, level }); }
+  earlyLog('[DIAG] Step 1: embed detection — embedded=' + IS_EMBEDDED + ' reason=' + embedReason + ' top=' + (window.top !== window.self) + ' name=' + (function(){try{return window.name}catch(_){return 'err'}})());
 
   // Skip non-embed iframes
   if (window.top !== window.self && !IS_EMBEDDED) return;
@@ -28,16 +34,27 @@
   // ============================================================
   // Adapter reference (set by modules/site-*.js loaded before us)
   // ============================================================
+  earlyLog('[DIAG] Step 2: checking adapter — found=' + !!(window.__ChatFreeSiteAdapter) + ' keys=' + (window.__ChatFreeSiteAdapter ? Object.keys(window.__ChatFreeSiteAdapter).join(',') : 'none'));
+
   const A = window.__ChatFreeSiteAdapter;
   if (!A) {
     console.error('[ChatFree] Site adapter not found. Load modules/site-*.js first.');
+    if (IS_EMBEDDED) {
+      try { window.parent.postMessage({ type: 'chatfree-log-msg', text: '[DIAG] FATAL: Site adapter not found', level: 'err' }, '*'); } catch (_) {}
+    }
     return;
   }
 
   // Guard against double injection
-  if (window._chatfree_cs_loaded) return;
+  if (window._chatfree_cs_loaded) {
+    earlyLog('[DIAG] Step 2b: double-injection guard triggered — already loaded (id=' + window._chatfree_injection_id + ')');
+    return;
+  }
   window._chatfree_cs_loaded = true;
   window._chatfree_injection_id = Math.random().toString(36).slice(2, 8);
+
+  // Flush early logs now that we know the adapter name
+  const diagPrefix = A.name.toUpperCase();
 
   // ============================================================
   // Module-level state
@@ -52,15 +69,21 @@
   // Helpers
   // ============================================================
   function dbg(msg, level) {
+    // Flush early logs on first call
+    if (_earlyLogs) {
+      const pending = _earlyLogs;
+      _earlyLogs = null;
+      for (const e of pending) dbg(e.msg, e.level);
+    }
     if (IS_EMBEDDED) {
       try {
         window.parent.postMessage({
-          type: 'chatfree-log-msg', text: msg, level: level || null
+          type: 'chatfree-log-msg', text: '[' + diagPrefix + '] ' + msg, level: level || null
         }, '*');
       } catch (_) {}
     } else {
       chrome.runtime.sendMessage({
-        type: 'debug', source: 'cs', message: msg, level: level || null
+        type: 'debug', source: 'cs-' + A.name, message: msg, level: level || null
       }).catch(() => {});
     }
   }
@@ -199,16 +222,24 @@
   function findInput(checkVisible) {
     if (checkVisible === undefined) checkVisible = true;
     const selectors = A.inputSelectors || ['textarea'];
+    const tried = [];
     for (const sel of selectors) {
       try {
         const el = document.querySelector(sel);
-        if (el && (!checkVisible || el.offsetParent !== null)) {
+        const visible = el && el.offsetParent !== null;
+        tried.push(sel + (el ? (visible ? '(✓v)' : '(✓h)') : '(✗)'));
+        if (el && (!checkVisible || visible)) {
           if (!checkVisible) _embeddedInput = el;
+          if (!checkVisible || IS_EMBEDDED) {
+            // Only log in embed mode or when finding hidden input (verbose)
+          }
           return el;
         }
       } catch {}
     }
+    dbg('[DIAG] findInput(' + checkVisible + ') tried: ' + tried.join(' → '));
     if (!checkVisible && _embeddedInput && document.contains(_embeddedInput)) {
+      dbg('[DIAG] findInput: using cached _embeddedInput (tag=' + _embeddedInput.tagName + ')');
       return _embeddedInput;
     }
     return null;
@@ -369,13 +400,16 @@
   // Embed mode: hide native input chrome
   // ============================================================
   function hideNativeInput() {
+    dbg('[DIAG] Step 3: hideNativeInput() called, finding input...');
     const input = findInput(false);
     if (!input) {
+      dbg('[DIAG] Step 3: input not found yet, retrying in 500ms...', 'warn');
       setTimeout(hideNativeInput, 500);
       return;
     }
 
     _embeddedInput = input;
+    dbg('[DIAG] Step 4: input found — tag=' + input.tagName + ' id=' + (input.id || '(none)') + ' class=' + ((input.className || '').toString().slice(0, 50)) + ' contentEditable=' + input.getAttribute('contenteditable'));
 
     let { el, method } = (A.findInputContainer)
       ? (A.findInputContainer(input) || {})
@@ -387,12 +421,14 @@
     }
 
     _hiddenEl = el;
+    dbg('[DIAG] Step 5: hiding container — tag=' + el.tagName + ' method=' + method + ' class=' + ((el.className || '').toString().slice(0, 50)));
 
     el.style.cssText = 'position:fixed !important;left:-9999px !important;top:-9999px !important;' +
                        'width:1px !important;height:1px !important;overflow:hidden !important;';
-    dbg('Embed: hid ' + method + ' ' + el.tagName + '.' + (el.className || '').slice(0, 40));
+    dbg('[DIAG] Step 6: container hidden, reporting ready');
     reportReady();
     installSSEInterceptor();
+    dbg('[DIAG] Step 7: SSE interceptor installed, init complete');
   }
 
   // ============================================================
@@ -441,13 +477,65 @@
 
     if (event.data.type === 'chatfree-ping') {
       hideNativeInput();
+      try {
+        window.parent.postMessage({ type: 'chatfree-pong' }, '*');
+      } catch (_) {}
+    }
+
+    if (event.data.type === 'chatfree-diagnose') {
+      runDiagnose();
     }
   });
+
+  // ---- Diagnose: comprehensive status report ----
+  function runDiagnose() {
+    const report = {
+      adapter: A.name,
+      embedded: IS_EMBEDDED,
+      embedReason: embedReason,
+      injectionId: window._chatfree_injection_id,
+      url: location.href,
+      topWindow: (function(){try{return window.top !== window.self}catch(_){return 'cross-origin'}})(),
+      frameName: (function(){try{return window.name}catch(_){return 'err'}})()
+    };
+
+    dbg('[DIAG] ====== Full Diagnostic ======');
+    dbg('[DIAG] Adapter: ' + report.adapter);
+    dbg('[DIAG] Embedded: ' + report.embedded + ' (' + report.embedReason + ')');
+    dbg('[DIAG] Injection ID: ' + report.injectionId);
+    dbg('[DIAG] URL: ' + report.url);
+    dbg('[DIAG] Top-level window: ' + report.topWindow);
+    dbg('[DIAG] Frame name: ' + report.frameName);
+
+    // Test input finding
+    const visInput = findInput(true);
+    const hidInput = findInput(false);
+    dbg('[DIAG] Visible input: ' + (visInput ? visInput.tagName + '#' + (visInput.id||'') : 'NOT FOUND'));
+    dbg('[DIAG] Hidden input (_embeddedInput): ' + (hidInput ? hidInput.tagName + '#' + (hidInput.id||'') : 'NOT FOUND'));
+    dbg('[DIAG] _hiddenEl: ' + (_hiddenEl ? _hiddenEl.tagName + ' style=' + _hiddenEl.style.cssText.slice(0,80) : 'null'));
+
+    // Test SSE interceptor
+    const fetchWrapped = window.fetch === window._chatfree_wrapper;
+    const origFetchOk = typeof window._chatfree_originalFetch === 'function';
+    dbg('[DIAG] Fetch wrapped: ' + fetchWrapped + ' | originalFetch preserved: ' + origFetchOk);
+
+    // Test postMessage channel back to parent
+    try {
+      window.parent.postMessage({
+        type: 'chatfree-diagnose-result',
+        report: report
+      }, '*');
+      dbg('[DIAG] Diagnose result sent to parent via postMessage');
+    } catch (_) {
+      dbg('[DIAG] Failed to send diagnose result', 'err');
+    }
+
+    dbg('[DIAG] ====== End Diagnostic ======');
+  }
 
   // ============================================================
   // Init
   // ============================================================
-  dbg('Content script loaded [' + window._chatfree_injection_id +
-      '] on ' + location.href + ' (site=' + A.name + ')');
+  dbg('Init complete [id=' + window._chatfree_injection_id + '] url=' + location.href + ' site=' + A.name + ' embedded=' + IS_EMBEDDED + ' reason=' + embedReason);
   hideNativeInput();
 })();

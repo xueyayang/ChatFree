@@ -135,6 +135,33 @@ body {
   color: #7ee787;
 }
 
+#test-btn {
+  padding: 2px 8px;
+  border: 1px solid #3a3f4b;
+  border-radius: 4px;
+  background: transparent;
+  color: #d29922;
+  font-family: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+#test-btn:hover {
+  border-color: #d29922;
+  color: #e3b341;
+  background: #1e2228;
+}
+
+#test-btn.running {
+  animation: test-pulse 0.8s ease-in-out infinite;
+}
+
+@keyframes test-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
 /* ---- Input Area ---- */
 #input-area {
   flex-shrink: 0;

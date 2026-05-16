@@ -39,6 +39,12 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     safeSend(msg);
     return false;
   }
+
+  // Connectivity test for diagnostics
+  if (msg.action === 'testConnectivity') {
+    testConnectivity(msg.site).then(result => sendResponse(result));
+    return true;
+  }
 });
 
 // ---- Login detection ----
@@ -145,6 +151,41 @@ function safeSend(msg) {
     chrome.runtime.sendMessage(msg).catch(() => {});
   } catch {
     // App page might be closed; ignore
+  }
+}
+
+// ---- Connectivity test for diagnostics ----
+async function testConnectivity(site) {
+  const urls = {
+    deepseek: 'https://chat.deepseek.com/',
+    chatgpt: 'https://chatgpt.com/',
+    doubao: 'https://www.doubao.com/chat/'
+  };
+  const url = urls[site];
+  if (!url) return { error: 'Unknown site: ' + site };
+
+  try {
+    const t0 = Date.now();
+    const resp = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow',
+      // Don't send credentials — this is just a connectivity check
+    });
+    const elapsed = Date.now() - t0;
+    const headers = {};
+    resp.headers.forEach((v, k) => {
+      if (['x-frame-options', 'content-security-policy', 'x-content-type-options'].includes(k.toLowerCase())) {
+        headers[k] = v;
+      }
+    });
+    return {
+      status: resp.status,
+      url: resp.url,
+      elapsed: elapsed + 'ms',
+      relevantHeaders: headers
+    };
+  } catch (err) {
+    return { error: err.message };
   }
 }
 

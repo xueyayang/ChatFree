@@ -10,7 +10,7 @@ const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT', doubao: 'è±†å
 
 // ---- Shared state ----
 const state = {
-  activeSites: ['deepseek', 'chatgpt'],  // ordered list, max 2. [0]=left, [1]=right
+  activeSites: ['deepseek', 'doubao'],  // ordered list, max 2. [0]=left, [1]=right
   activePanel: 'left',  // which panel receives input: 'left' | 'right'
   splitRatio: 0.5,  // left panel fraction of available width
   requestId: 0
@@ -27,6 +27,7 @@ const debugToggle = $('#debug-toggle');
 const debugPanel = $('#debug-panel');
 const debugLog = $('#debug-log');
 const debugClear = $('#debug-clear');
+const testBtn = $('#test-btn');
 const panelSwitch = $('#panel-switch');
 const indicatorLeft = $('#indicator-left');
 const indicatorRight = $('#indicator-right');
@@ -81,6 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   debugToggle.addEventListener('click', toggleDebugPanel);
   debugClear.addEventListener('click', clearDebugLog);
+  testBtn.addEventListener('click', runDiagnostics);
   document.getElementById('debug-copy').addEventListener('click', copyDebugLog);
 
   // Panel indicators (click to switch active panel)
@@ -115,6 +117,55 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   appendDebug('app', 'Ready');
 });
+
+// ---- Diagnostics ----
+function runDiagnostics() {
+  testBtn.classList.add('running');
+  testBtn.disabled = true;
+  const t0 = Date.now();
+  appendDebug('app', '========== EMBED DIAGNOSTICS ==========');
+  appendDebug('app', '[TEST] Active sites: ' + state.activeSites.join(', '));
+  appendDebug('app', '[TEST] Active panel: ' + state.activePanel);
+
+  // 1. Run content-script diagnose on each active panel
+  for (const side of ['left', 'right']) {
+    const mod = panelModules[side];
+    if (mod) {
+      appendDebug('app', '[TEST] --- Diagnosing ' + side + ' panel (' + mod.backend + ') ---');
+      mod.module.sendDiagnose();
+    } else {
+      appendDebug('app', '[TEST] ' + side + ' panel: not loaded');
+    }
+  }
+
+  // 2. Connectivity test via background service worker
+  const sitesToTest = [...new Set([...state.activeSites, 'chatgpt'])];
+  sitesToTest.forEach(site => {
+    chrome.runtime.sendMessage({
+      action: 'testConnectivity',
+      site: site
+    }).then(result => {
+      appendDebug('app', '[TEST] Connectivity ' + site + ': ' + JSON.stringify(result));
+    }).catch(err => {
+      appendDebug('app', '[TEST] Connectivity ' + site + ': ERROR ' + err.message, 'err');
+    });
+  });
+
+  // 3. Check declarativeNetRequest rules
+  chrome.declarativeNetRequest.getDynamicRules().then(rules => {
+    appendDebug('app', '[TEST] Dynamic DNR rules: ' + rules.length);
+  }).catch(() => {});
+
+  chrome.declarativeNetRequest.getEnabledRulesets().then(rulesets => {
+    appendDebug('app', '[TEST] Enabled rulesets: ' + JSON.stringify(rulesets));
+  }).catch(() => {});
+
+  setTimeout(() => {
+    testBtn.classList.remove('running');
+    testBtn.disabled = false;
+    appendDebug('app', '[TEST] ========== Diagnostics complete +' + (Date.now() - t0) + 'ms ==========');
+  }, 3000);
+}
 
 // ---- Site toggle ----
 function toggleSite(site) {
