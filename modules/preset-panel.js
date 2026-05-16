@@ -8,8 +8,10 @@
 
 export function createPresetPanel({ container }) {
   const STORAGE_KEY = 'chatfree_presets';
+  const DISABLED_KEY = 'chatfree_rules_disabled';
   let presets = [];
   let filterText = '';
+  let rulesDisabled = localStorage.getItem(DISABLED_KEY) === '1';
   const changeCallbacks = [];
   let dirty = false;
   let dialog = null;       // add/edit dialog
@@ -91,6 +93,7 @@ export function createPresetPanel({ container }) {
   }
 
   function getActiveRulesText() {
+    if (rulesDisabled) return '';
     const enabled = presets.filter(p => p.enabled);
     if (enabled.length > 0 && !usageRecordedThisTick) {
       enabled.forEach(p => { p.count = (p.count || 0) + 1; });
@@ -359,6 +362,18 @@ export function createPresetPanel({ container }) {
       applyFilter();
     });
     header.appendChild(search);
+
+    const disableBtn = document.createElement('button');
+    disableBtn.id = 'preset-disable-btn';
+    disableBtn.textContent = '禁用';
+    disableBtn.title = '暂停规则注入（不修改勾选状态）';
+    disableBtn.classList.toggle('disabled', rulesDisabled);
+    disableBtn.addEventListener('click', () => {
+      rulesDisabled = !rulesDisabled;
+      localStorage.setItem(DISABLED_KEY, rulesDisabled ? '1' : '0');
+      disableBtn.classList.toggle('disabled', rulesDisabled);
+    });
+    header.appendChild(disableBtn);
 
     const editBtn = document.createElement('button');
     editBtn.id = 'preset-edit-icon';

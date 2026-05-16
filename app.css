@@ -227,6 +227,35 @@ body {
   color: #e1e5eb;
 }
 
+#preset-disable-btn {
+  padding: 0 5px;
+  height: 22px;
+  border: 1px solid #2d323c;
+  border-radius: 4px;
+  background: transparent;
+  color: #808896;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+#preset-disable-btn:hover {
+  border-color: #e5534b;
+  color: #e5534b;
+}
+
+#preset-disable-btn.disabled {
+  background: #3a2025;
+  border-color: #e5534b;
+  color: #e5534b;
+}
+
 /* ---- Preset edit dialog ---- */
 #preset-dialog {
   width: 400px;
