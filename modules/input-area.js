@@ -97,7 +97,7 @@ export function createInputAreaModule({ container, state, utils }) {
     if (!userText) return '';
     const rulesText = presetPanel ? presetPanel.getActiveRulesText() : '';
     if (rulesText) {
-      return rulesText + '\n\n' + userText;
+      return userText + '\n\n' + rulesText;
     }
     return userText;
   }
