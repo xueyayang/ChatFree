@@ -69,7 +69,7 @@ ChatFree/
 ├── background.js           # Service Worker：登录检测、消息路由
 ├── manifest.json           # Manifest V3 配置
 ├── rules_headers.json      # 移除 embed 阻止头
-├── content.js              # DeepSeek 站点最后一公里（当前为占位）
+├── content_deepseek.js     # DeepSeek 站点最后一公里（当前为占位）
 ├── content_doubao.js       # 豆包站点最后一公里（当前为占位）
 ├── content_chatgpt.js      # ChatGPT 完整内容脚本（未迁移到新架构）
 ├── data/
@@ -203,7 +203,7 @@ ChatFree/
 ```
 1. modules/site-{name}.js  → 设置 window.__ChatFreeSiteAdapter
 2. modules/content-core.js  → 读取适配器，启动 embed 模式
-3. content.js               → 站点特定最后一公里 (可选)
+3. content_deepseek.js      → 站点特定最后一公里 (可选)
 ```
 
 **embed 检测**：通过 `window.name === 'chatfree_embed_v1'` 或 `location.hash` 包含 `chatfree-embed` 或 `document.referrer` 以 `chrome-extension://` 开头来判断是否在 embed 模式。
@@ -347,7 +347,7 @@ manifest.json 中声明了 content scripts 的注入规则：
 ```json
 {
   "matches": ["https://chat.deepseek.com/*"],
-  "js": ["modules/site-deepseek.js", "modules/content-core.js", "content.js"],
+  "js": ["modules/site-deepseek.js", "modules/content-core.js", "content_deepseek.js"],
   "run_at": "document_idle",
   "all_frames": true
 }

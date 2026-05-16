@@ -32,7 +32,7 @@
   "content_scripts": [
     {
       "matches": ["https://chat.deepseek.com/*"],
-      "js": ["modules/site-deepseek.js", "modules/content-core.js", "content.js"],
+      "js": ["modules/site-deepseek.js", "modules/content-core.js", "content_deepseek.js"],
       "run_at": "document_idle",
       "all_frames": true
     },

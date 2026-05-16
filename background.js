@@ -117,7 +117,7 @@ async function pingContentScript(backend) {
 
     const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js'
                      : backend === 'doubao' ? 'content_doubao.js'
-                     : 'content.js';
+                     : 'content_deepseek.js';
     const result = await chrome.tabs.sendMessage(tabs[0].id, { action: 'ping' });
     return { tabId: tabs[0].id, tabTitle: tabs[0].title, page: result };
   } catch (err) {
@@ -129,7 +129,7 @@ async function pingContentScript(backend) {
 
         const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js'
                          : backend === 'doubao' ? 'content_doubao.js'
-                         : 'content.js';
+                         : 'content_deepseek.js';
         await chrome.scripting.executeScript({
           target: { tabId: tabs[0].id },
           files: [scriptFile]
