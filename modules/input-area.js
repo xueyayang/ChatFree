@@ -1,19 +1,37 @@
 // modules/input-area.js
 // Input area module — split layout: left preset rules panel, right textarea + buttons.
-// Composes preset-panel.js and exposes composed text (rules + user input) for sending.
+// Composes preset-panel.js and history-panel.js. Exposes composed text (rules + user input) for sending.
 //
 // Interface: createInputAreaModule({ container, state, utils })
 //   → { init, getComposedText, clear, setEnabled, onSend, dom }
 
 import { createPresetPanel } from './preset-panel.js';
+import { createHistoryPanel } from './history-panel.js';
 
 export function createInputAreaModule({ container, state, utils }) {
-  let inputEl, sendBtn, presetPanel;
+  let inputEl, sendBtn, presetPanel, historyPanel;
   const sendCallbacks = [];
 
   function init() {
     buildUI();
     presetPanel = createPresetPanel({ container: document.getElementById('preset-panel') });
+
+    const popover = document.getElementById('history-popover');
+    const toggleBtn = document.getElementById('history-btn');
+    historyPanel = createHistoryPanel({ container: popover, toggleBtn });
+    historyPanel.init();
+
+    historyPanel.onFill((text) => {
+      inputEl.value = text;
+      inputEl.focus();
+    });
+
+    historyPanel.onResend((text) => {
+      inputEl.value = text;
+      const composed = getComposedText();
+      if (composed) sendCallbacks.forEach(cb => cb(composed));
+      inputEl.value = '';
+    });
   }
 
   function buildUI() {
@@ -23,28 +41,55 @@ export function createInputAreaModule({ container, state, utils }) {
         <div id="input-main">
           <div id="input-wrapper">
             <textarea id="message-input" placeholder="Type a message..." disabled></textarea>
+            <button id="history-btn" title="History (Ctrl+H)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <polyline points="12,6 12,12 16,14"/>
+              </svg>
+            </button>
             <button id="send-btn" disabled>Send</button>
           </div>
         </div>
       </div>
+      <div id="history-popover"></div>
     `;
 
     inputEl = document.getElementById('message-input');
     sendBtn = document.getElementById('send-btn');
 
     sendBtn.addEventListener('click', () => {
-      const text = getComposedText();
-      if (text) sendCallbacks.forEach(cb => cb(text));
+      const composed = getComposedText();
+      if (composed) {
+        sendCallbacks.forEach(cb => cb(composed));
+        recordToHistory();
+      }
     });
 
     inputEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        const text = getComposedText();
-        if (text) sendCallbacks.forEach(cb => cb(text));
+        const composed = getComposedText();
+        if (composed) {
+          sendCallbacks.forEach(cb => cb(composed));
+          recordToHistory();
+        }
       }
     });
 
+    // Ctrl+H toggles history popover
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'h') {
+        e.preventDefault();
+        if (historyPanel) historyPanel.toggle();
+      }
+    });
+  }
+
+  function recordToHistory() {
+    const userText = inputEl.value.trim();
+    if (!userText || !historyPanel) return;
+    const targetSite = state.activeSites[state.activePanel === 'left' ? 0 : 1] || '';
+    historyPanel.record(userText, targetSite);
   }
 
   function getComposedText() {
