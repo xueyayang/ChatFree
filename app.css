@@ -95,6 +95,21 @@ body {
   opacity: 1;
 }
 
+/* ---- Site icon drag reorder ---- */
+.site-icon.dragging {
+  opacity: 0.35;
+}
+
+.site-icon.drag-target-left {
+  border-left: 2px solid #00d4ff;
+  margin-left: -2px;
+}
+
+.site-icon.drag-target-right {
+  border-right: 2px solid #00d4ff;
+  margin-right: -2px;
+}
+
 #debug-toggle {
   width: 36px;
   height: 28px;
