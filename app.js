@@ -6,7 +6,7 @@ import { createEmbedSyncModule } from './modules/sync-embed.js';
 import { createInputAreaModule } from './modules/input-area.js';
 
 // ---- Backend config ----
-const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT', doubao: '豆包' };
+const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT', doubao: '豆包', qianwen: '千问', gemini: 'Gemini' };
 
 // ---- Shared state ----
 const state = {

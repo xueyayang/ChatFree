@@ -13,6 +13,14 @@ const BACKENDS = {
   doubao: {
     base: 'https://www.doubao.com',
     checkLogin: checkDoubaoLogin
+  },
+  qianwen: {
+    base: 'https://tongyi.aliyun.com',
+    checkLogin: checkQianwenLogin
+  },
+  gemini: {
+    base: 'https://gemini.google.com',
+    checkLogin: checkGeminiLogin
   }
 };
 
@@ -104,6 +112,50 @@ async function checkDoubaoLogin() {
   }
 }
 
+async function checkQianwenLogin() {
+  try {
+    const cookies = await chrome.cookies.getAll({ domain: 'tongyi.aliyun.com' });
+    const hasSession = cookies.some(c =>
+      c.name.includes('session') ||
+      c.name.includes('token') ||
+      c.name.includes('auth') ||
+      c.name.includes('login') ||
+      c.name.includes('aliyun') ||
+      (c.name === 'tpa_trust_security') ||
+      (c.value && c.value.length > 30 && c.name.includes('sid'))
+    );
+    debug('bg', 'Qianwen login check: ' + (hasSession ? 'connected' : 'disconnected') +
+      ' (' + cookies.length + ' cookies)');
+    return { loggedIn: hasSession };
+  } catch (e) {
+    debug('bg', 'Qianwen login check failed: ' + e.message, 'err');
+    return { loggedIn: false };
+  }
+}
+
+async function checkGeminiLogin() {
+  try {
+    const cookies = await chrome.cookies.getAll({ domain: 'gemini.google.com' });
+    const hasSession = cookies.some(c =>
+      c.name.includes('SAPISID') ||
+      c.name.includes('__Secure-1PAPISID') ||
+      c.name.includes('__Secure-3PAPISID') ||
+      c.name.includes('SSID') ||
+      c.name.includes('SID') ||
+      c.name.includes('HSID') ||
+      c.name.includes('LSID') ||
+      c.name.includes('APISID') ||
+      (c.name === 'SID' && c.value && c.value.length > 20)
+    );
+    debug('bg', 'Gemini login check: ' + (hasSession ? 'connected' : 'disconnected') +
+      ' (' + cookies.length + ' cookies)');
+    return { loggedIn: hasSession };
+  } catch (e) {
+    debug('bg', 'Gemini login check failed: ' + e.message, 'err');
+    return { loggedIn: false };
+  }
+}
+
 // ---- Ping content script for diagnostics ----
 async function pingContentScript(backend) {
   const cfg = BACKENDS[backend];
@@ -117,6 +169,8 @@ async function pingContentScript(backend) {
 
     const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js'
                      : backend === 'doubao' ? 'content_doubao.js'
+                     : backend === 'qianwen' ? 'content_qianwen.js'
+                     : backend === 'gemini' ? 'content_gemini.js'
                      : 'content_deepseek.js';
     const result = await chrome.tabs.sendMessage(tabs[0].id, { action: 'ping' });
     return { tabId: tabs[0].id, tabTitle: tabs[0].title, page: result };
@@ -129,6 +183,8 @@ async function pingContentScript(backend) {
 
         const scriptFile = backend === 'chatgpt' ? 'content_chatgpt.js'
                          : backend === 'doubao' ? 'content_doubao.js'
+                         : backend === 'qianwen' ? 'content_qianwen.js'
+                         : backend === 'gemini' ? 'content_gemini.js'
                          : 'content_deepseek.js';
         await chrome.scripting.executeScript({
           target: { tabId: tabs[0].id },
@@ -159,7 +215,9 @@ async function testConnectivity(site) {
   const urls = {
     deepseek: 'https://chat.deepseek.com/',
     chatgpt: 'https://chatgpt.com/',
-    doubao: 'https://www.doubao.com/chat/'
+    doubao: 'https://www.doubao.com/chat/',
+    qianwen: 'https://tongyi.aliyun.com/',
+    gemini: 'https://gemini.google.com/app'
   };
   const url = urls[site];
   if (!url) return { error: 'Unknown site: ' + site };

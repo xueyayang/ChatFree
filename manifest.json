@@ -7,7 +7,10 @@
   "host_permissions": [
     "https://chat.deepseek.com/*",
     "https://chatgpt.com/*",
-    "https://www.doubao.com/*"
+    "https://www.doubao.com/*",
+    "https://www.qianwen.com/*",
+    "https://tongyi.aliyun.com/*",
+    "https://gemini.google.com/*"
   ],
   "declarative_net_request": {
     "rule_resources": [
@@ -45,6 +48,18 @@
     {
       "matches": ["https://www.doubao.com/*"],
       "js": ["modules/site-doubao.js", "modules/content-core.js", "content_doubao.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": ["https://www.qianwen.com/*", "https://tongyi.aliyun.com/*"],
+      "js": ["modules/site-qianwen.js", "modules/content-core.js", "content_qianwen.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    },
+    {
+      "matches": ["https://gemini.google.com/*"],
+      "js": ["modules/site-gemini.js", "modules/content-core.js", "content_gemini.js"],
       "run_at": "document_idle",
       "all_frames": true
     }
