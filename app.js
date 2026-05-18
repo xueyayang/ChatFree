@@ -58,6 +58,12 @@ const utils = {
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', async () => {
+  // Open long-lived port to background for cookie injection lifecycle
+  const bgPort = chrome.runtime.connect({ name: 'chatfree-app' });
+  bgPort.onDisconnect.addListener(() => {
+    appendDebug('app', 'Background port lost — cookie injection may stop');
+  });
+
   // Init input area module
   inputModule = createInputAreaModule({ container: inputArea, state, utils });
   inputModule.init();

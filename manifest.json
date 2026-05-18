@@ -34,6 +34,13 @@
   },
   "content_scripts": [
     {
+      "matches": ["https://www.qianwen.com/*", "https://tongyi.aliyun.com/*"],
+      "js": ["modules/nav-guard.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "world": "MAIN"
+    },
+    {
       "matches": ["https://chat.deepseek.com/*"],
       "js": ["modules/site-deepseek.js", "modules/content-core.js", "content_deepseek.js"],
       "run_at": "document_idle",
