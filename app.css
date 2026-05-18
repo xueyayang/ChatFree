@@ -95,6 +95,30 @@ body {
   opacity: 1;
 }
 
+/* ---- Panel drop zone highlight ---- */
+#main-area.drag-side-left {
+  box-shadow: inset 3px 0 0 rgba(0, 212, 255, 0.5);
+}
+
+#main-area.drag-side-right {
+  box-shadow: inset -3px 0 0 rgba(0, 212, 255, 0.5);
+}
+
+.embed-panel:not(.hidden).drag-target {
+  outline: 2px dashed #00d4ff;
+  outline-offset: -2px;
+  background: rgba(0, 212, 255, 0.06);
+}
+
+.embed-panel:not(.hidden).drag-target::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 212, 255, 0.04);
+  pointer-events: none;
+  z-index: 1;
+}
+
 /* ---- Site icon drag reorder ---- */
 .site-icon.dragging {
   opacity: 0.35;

@@ -88,7 +88,7 @@ export function createInputAreaModule({ container, state, utils }) {
   function recordToHistory() {
     const composed = getComposedText();
     if (!composed || !historyPanel) return;
-    const targetSite = state.activeSites[state.activePanel === 'left' ? 0 : 1] || '';
+    const targetSite = (state.panels && state.panels[state.activePanel]) || '';
     historyPanel.record(composed, targetSite, state.activePanel);
   }
 

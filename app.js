@@ -10,11 +10,16 @@ const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT', doubao: '豆�
 
 // ---- Shared state ----
 const state = {
-  activeSites: ['doubao', 'qianwen'],  // ordered list, max 2. [0]=left, [1]=right
+  panels: { left: 'doubao', right: 'qianwen' },  // which site is in each panel (null = empty)
   activePanel: 'left',  // which panel receives input: 'left' | 'right'
   splitRatio: 0.5,  // left panel fraction of available width
   requestId: 0
 };
+
+function activeCount() { return (state.panels.left ? 1 : 0) + (state.panels.right ? 1 : 0); }
+function bothActive() { return !!(state.panels.left && state.panels.right); }
+function panelSite(side) { return state.panels[side] || null; }
+function sitePanel(site) { return state.panels.left === site ? 'left' : state.panels.right === site ? 'right' : null; }
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -124,7 +129,7 @@ function runDiagnostics() {
   testBtn.disabled = true;
   const t0 = Date.now();
   appendDebug('app', '========== EMBED DIAGNOSTICS ==========');
-  appendDebug('app', '[TEST] Active sites: ' + state.activeSites.join(', '));
+  appendDebug('app', '[TEST] Active sites: ' + [state.panels.left, state.panels.right].filter(Boolean).join(', '));
   appendDebug('app', '[TEST] Active panel: ' + state.activePanel);
 
   // 1. Run content-script diagnose on each active panel
@@ -139,7 +144,7 @@ function runDiagnostics() {
   }
 
   // 2. Connectivity test via background service worker
-  const sitesToTest = [...new Set([...state.activeSites, 'chatgpt'])];
+  const sitesToTest = [...new Set([state.panels.left, state.panels.right, 'chatgpt'].filter(Boolean))];
   sitesToTest.forEach(site => {
     chrome.runtime.sendMessage({
       action: 'testConnectivity',
@@ -169,37 +174,81 @@ function runDiagnostics() {
 
 // ---- Site toggle ----
 function toggleSite(site) {
-  const idx = state.activeSites.indexOf(site);
-  if (idx >= 0) {
-    // Already active — switch focus to its panel
-    const side = idx === 0 ? 'left' : 'right';
-    if (state.activePanel !== side) {
-      appendDebug('app', `Icon click → switch focus: ${state.activePanel} → ${side}`);
-      state.activePanel = side;
+  const currentSide = sitePanel(site);
+  if (currentSide) {
+    // Already active — switch focus to its panel, or double-click to deactivate
+    if (state.activePanel !== currentSide) {
+      appendDebug('app', `Icon click → switch focus: ${state.activePanel} → ${currentSide}`);
+      state.activePanel = currentSide;
       updateIndicators();
     } else {
       // Double-click active icon → deactivate
-      state.activeSites.splice(idx, 1);
+      state.panels[currentSide] = null;
       renderLayout();
     }
   } else {
-    // Activate new site
-    if (state.activeSites.length >= 2) {
-      const old = state.activeSites.pop();
+    // Activate new site — fill left first, then right; if both full, replace right
+    if (!state.panels.left) {
+      state.panels.left = site;
+    } else if (!state.panels.right) {
+      state.panels.right = site;
+    } else {
+      const old = state.panels.right;
       document.querySelector(`.site-icon[data-site="${old}"]`)?.classList.remove('active');
+      state.panels.right = site;
     }
-    state.activeSites.push(site);
     renderLayout();
-    // Focus the newly added panel
-    const newIdx = state.activeSites.indexOf(site);
-    state.activePanel = newIdx === 0 ? 'left' : 'right';
+    state.activePanel = sitePanel(site) || 'left';
     updateIndicators();
   }
+}
+
+function openSiteInPanel(site, side) {
+  const currentSide = sitePanel(site);
+  const otherSide = side === 'left' ? 'right' : 'left';
+
+  if (currentSide === side) {
+    // Already in target panel — just focus it
+    if (state.activePanel !== side) {
+      state.activePanel = side;
+      updateIndicators();
+    }
+    return;
+  }
+
+  if (currentSide === otherSide) {
+    // Site is in the other panel — swap or move it
+    const displaced = state.panels[side];
+    if (displaced) {
+      // Both panels occupied — swap
+      state.panels[otherSide] = displaced;
+      state.panels[side] = site;
+    } else {
+      // Only other panel occupied — move to target
+      state.panels[side] = site;
+      state.panels[otherSide] = null;
+    }
+  } else {
+    // New site — place in target panel, replacing if occupied
+    const old = state.panels[side];
+    if (old) {
+      document.querySelector(`.site-icon[data-site="${old}"]`)?.classList.remove('active');
+    }
+    // If site is replacing the other panel... no, that's only for the same side
+    // Check if site already occupies the OTHER side (handled above)
+    state.panels[side] = site;
+  }
+
+  state.activePanel = side;
+  renderLayout();
+  updateIndicators();
+  appendDebug('app', `Drag → ${site} opened in ${side} panel`);
 }
 
 // ---- Icon drag reorder ----
 function initIconDragReorder() {
   const container = document.getElementById('site-icons');
+  const mainArea = $('#main-area');
   let dragSrc = null;
 
   // Restore saved order
@@ -274,7 +323,60 @@ function initIconDragReorder() {
     container.querySelectorAll('.site-icon').forEach(el => {
       el.classList.remove('drag-target-left', 'drag-target-right');
     });
+    // Clear panel drop highlights
+    panelLeft.classList.remove('drag-target');
+    panelRight.classList.remove('drag-target');
+    mainArea.classList.remove('drag-side-left', 'drag-side-right');
     dragSrc = null;
+  });
+
+  // ---- Panel drop zones (drag icon to left/right panel) ----
+  function getDropSide(e) {
+    const rect = mainArea.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const debugWidth = debugPanel.classList.contains('hidden') ? 0 : 340;
+    const gutterWidth = 4;
+    const available = mainArea.clientWidth - debugWidth - gutterWidth;
+    const midX = bothActive()
+      ? available * state.splitRatio
+      : available / 2;
+    return x < midX ? 'left' : 'right';
+  }
+
+  mainArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const side = getDropSide(e);
+    mainArea.classList.remove('drag-side-left', 'drag-side-right');
+    mainArea.classList.add(side === 'left' ? 'drag-side-left' : 'drag-side-right');
+
+    if (!panelLeft.classList.contains('hidden')) {
+      panelLeft.classList.toggle('drag-target', side === 'left');
+    }
+    if (!panelRight.classList.contains('hidden')) {
+      panelRight.classList.toggle('drag-target', side === 'right');
+    }
+  });
+
+  mainArea.addEventListener('dragleave', (e) => {
+    if (!mainArea.contains(e.relatedTarget)) {
+      panelLeft.classList.remove('drag-target');
+      panelRight.classList.remove('drag-target');
+      mainArea.classList.remove('drag-side-left', 'drag-side-right');
+    }
+  });
+
+  mainArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    panelLeft.classList.remove('drag-target');
+    panelRight.classList.remove('drag-target');
+    mainArea.classList.remove('drag-side-left', 'drag-side-right');
+
+    const site = e.dataTransfer.getData('text/plain');
+    if (!site) return;
+
+    openSiteInPanel(site, getDropSide(e));
   });
 }
 
@@ -291,19 +393,19 @@ function saveIconOrder() {
 function renderLayout() {
   // Update icon states
   siteIcons.forEach(icon => {
-    icon.classList.toggle('active', state.activeSites.includes(icon.dataset.site));
+    icon.classList.toggle('active', sitePanel(icon.dataset.site) !== null);
   });
 
   // Left panel
-  if (state.activeSites.length >= 1) {
-    loadPanel('left', state.activeSites[0]);
+  if (state.panels.left) {
+    loadPanel('left', state.panels.left);
   } else {
     unloadPanel('left');
   }
 
   // Right panel
-  if (state.activeSites.length >= 2) {
-    loadPanel('right', state.activeSites[1]);
+  if (state.panels.right) {
+    loadPanel('right', state.panels.right);
   } else {
     unloadPanel('right');
   }
@@ -314,9 +416,9 @@ function renderLayout() {
   }
 
   // Show center switch & gutter only when both panels are active
-  const bothActive = state.activeSites.length >= 2;
-  panelSwitch.classList.toggle('hidden', !bothActive);
-  resizeGutter.classList.toggle('hidden', !bothActive);
+  const both = bothActive();
+  panelSwitch.classList.toggle('hidden', !both);
+  resizeGutter.classList.toggle('hidden', !both);
 
   applySplit();
   updateIndicators();
@@ -383,8 +485,8 @@ function unloadPanel(side) {
 
 // ---- Panel split resizing ----
 function applySplit() {
-  const bothActive = state.activeSites.length === 2;
-  if (!bothActive) {
+  const both = bothActive();
+  if (!both) {
     panelLeft.style.flex = '';
     panelRight.style.flex = '';
     indicatorLeft.style.flex = '';
@@ -444,7 +546,7 @@ resizeGutter.addEventListener('mousedown', (e) => {
 });
 
 window.addEventListener('resize', () => {
-  if (state.activeSites.length === 2) {
+  if (bothActive()) {
     applySplit();
   }
 });
