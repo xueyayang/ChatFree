@@ -250,6 +250,7 @@ function initIconDragReorder() {
   const container = document.getElementById('site-icons');
   const mainArea = $('#main-area');
   let dragSrc = null;
+  let dropOverlay = null;
 
   // Restore saved order
   const saved = localStorage.getItem('iconOrder');
@@ -263,6 +264,66 @@ function initIconDragReorder() {
     } catch (_) { /* ignore */ }
   }
 
+  function getDropSide(e) {
+    const rect = mainArea.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const debugWidth = debugPanel.classList.contains('hidden') ? 0 : 340;
+    const gutterWidth = bothActive() ? 4 : 0;
+    const available = rect.width - debugWidth - gutterWidth;
+    const midX = bothActive()
+      ? available * state.splitRatio
+      : available / 2;
+    return x < midX ? 'left' : 'right';
+  }
+
+  function highlightDropTarget(side) {
+    mainArea.classList.remove('drag-side-left', 'drag-side-right');
+    mainArea.classList.add(side === 'left' ? 'drag-side-left' : 'drag-side-right');
+    if (!panelLeft.classList.contains('hidden')) {
+      panelLeft.classList.toggle('drag-target', side === 'left');
+    }
+    if (!panelRight.classList.contains('hidden')) {
+      panelRight.classList.toggle('drag-target', side === 'right');
+    }
+  }
+
+  function clearDropHighlights() {
+    panelLeft.classList.remove('drag-target');
+    panelRight.classList.remove('drag-target');
+    mainArea.classList.remove('drag-side-left', 'drag-side-right');
+  }
+
+  function removeDropOverlay() {
+    if (dropOverlay) {
+      dropOverlay.remove();
+      dropOverlay = null;
+    }
+    clearDropHighlights();
+  }
+
+  function createDropOverlay() {
+    if (dropOverlay) return;
+    dropOverlay = document.createElement('div');
+    dropOverlay.id = 'drag-drop-overlay';
+    dropOverlay.style.cssText = 'position:absolute;inset:0;z-index:50;';
+    dropOverlay.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      highlightDropTarget(getDropSide(e));
+    });
+    dropOverlay.addEventListener('dragleave', () => {
+      clearDropHighlights();
+    });
+    dropOverlay.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const site = e.dataTransfer.getData('text/plain');
+      appendDebug('app', `Drop on panel area: site=${site} side=${getDropSide(e)} panels=${JSON.stringify(state.panels)}`);
+      if (site) openSiteInPanel(site, getDropSide(e));
+      removeDropOverlay();
+    });
+    mainArea.appendChild(dropOverlay);
+  }
+
   container.addEventListener('dragstart', (e) => {
     const icon = e.target.closest('.site-icon');
     if (!icon) return;
@@ -270,6 +331,9 @@ function initIconDragReorder() {
     icon.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', icon.dataset.site);
+    // Overlay needed to capture drops over iframes in the panels
+    createDropOverlay();
+    appendDebug('app', `Drag start: ${icon.dataset.site}`);
   });
 
   container.addEventListener('dragover', (e) => {
@@ -293,7 +357,6 @@ function initIconDragReorder() {
 
   container.addEventListener('dragleave', (e) => {
     const icon = e.target.closest('.site-icon');
-    // Only clear when actually leaving the icon, not entering a child
     if (icon && !icon.contains(e.relatedTarget)) {
       icon.classList.remove('drag-target-left', 'drag-target-right');
     }
@@ -323,60 +386,9 @@ function initIconDragReorder() {
     container.querySelectorAll('.site-icon').forEach(el => {
       el.classList.remove('drag-target-left', 'drag-target-right');
     });
-    // Clear panel drop highlights
-    panelLeft.classList.remove('drag-target');
-    panelRight.classList.remove('drag-target');
-    mainArea.classList.remove('drag-side-left', 'drag-side-right');
+    appendDebug('app', `Drag end`);
+    removeDropOverlay();
     dragSrc = null;
-  });
-
-  // ---- Panel drop zones (drag icon to left/right panel) ----
-  function getDropSide(e) {
-    const rect = mainArea.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const debugWidth = debugPanel.classList.contains('hidden') ? 0 : 340;
-    const gutterWidth = 4;
-    const available = mainArea.clientWidth - debugWidth - gutterWidth;
-    const midX = bothActive()
-      ? available * state.splitRatio
-      : available / 2;
-    return x < midX ? 'left' : 'right';
-  }
-
-  mainArea.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-
-    const side = getDropSide(e);
-    mainArea.classList.remove('drag-side-left', 'drag-side-right');
-    mainArea.classList.add(side === 'left' ? 'drag-side-left' : 'drag-side-right');
-
-    if (!panelLeft.classList.contains('hidden')) {
-      panelLeft.classList.toggle('drag-target', side === 'left');
-    }
-    if (!panelRight.classList.contains('hidden')) {
-      panelRight.classList.toggle('drag-target', side === 'right');
-    }
-  });
-
-  mainArea.addEventListener('dragleave', (e) => {
-    if (!mainArea.contains(e.relatedTarget)) {
-      panelLeft.classList.remove('drag-target');
-      panelRight.classList.remove('drag-target');
-      mainArea.classList.remove('drag-side-left', 'drag-side-right');
-    }
-  });
-
-  mainArea.addEventListener('drop', (e) => {
-    e.preventDefault();
-    panelLeft.classList.remove('drag-target');
-    panelRight.classList.remove('drag-target');
-    mainArea.classList.remove('drag-side-left', 'drag-side-right');
-
-    const site = e.dataTransfer.getData('text/plain');
-    if (!site) return;
-
-    openSiteInPanel(site, getDropSide(e));
   });
 }
 
