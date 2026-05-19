@@ -8,6 +8,10 @@ import { createInputAreaModule } from './modules/input-area.js';
 // ---- Backend config ----
 const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT', doubao: '豆包', qianwen: '千问', gemini: 'Gemini' };
 
+// ---- localStorage debug log ----
+const DEBUG_LOG_KEY = 'chatfree_app_log';
+const DEBUG_LOG_MAX = 500;
+
 // ---- Shared state ----
 const state = {
   panels: { left: 'doubao', right: 'qianwen' },  // which site is in each panel (null = empty)
@@ -63,6 +67,8 @@ const utils = {
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', async () => {
+  restoreDebugLog();
+
   // Open long-lived port to background for cookie mirroring lifecycle
   const bgPort = chrome.runtime.connect({ name: 'chatfree-app' });
   bgPort.onDisconnect.addListener(() => {
@@ -577,8 +583,38 @@ function toggleDebugPanel() {
   applySplit();
 }
 
+function restoreDebugLog() {
+  try {
+    const raw = localStorage.getItem(DEBUG_LOG_KEY);
+    if (!raw) return;
+    const logs = JSON.parse(raw);
+    if (!logs.length) return;
+    if (debugLog.querySelector('.debug-empty')) debugLog.innerHTML = '';
+    logs.forEach(({ t, s, m, l }) => {
+      const time = new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const entry = document.createElement('div');
+      entry.className = 'debug-entry' + (l ? ' ' + l : '');
+      const timeEl = document.createElement('span');
+      timeEl.className = 'debug-time';
+      timeEl.textContent = time;
+      const srcEl = document.createElement('span');
+      srcEl.className = 'debug-source ' + s;
+      srcEl.textContent = s;
+      const msgEl = document.createElement('span');
+      msgEl.className = 'debug-msg';
+      msgEl.textContent = m;
+      entry.appendChild(timeEl);
+      entry.appendChild(srcEl);
+      entry.appendChild(msgEl);
+      debugLog.appendChild(entry);
+    });
+    debugLog.scrollTop = debugLog.scrollHeight;
+  } catch (_) {}
+}
+
 function clearDebugLog() {
   debugLog.innerHTML = '<div class="debug-empty">Log cleared</div>';
+  try { localStorage.removeItem(DEBUG_LOG_KEY); } catch (_) {}
 }
 
 function copyDebugLog() {
@@ -631,4 +667,14 @@ function appendDebug(source, msg, level) {
   while (debugLog.children.length > 200) {
     debugLog.firstElementChild.remove();
   }
+
+  // Persist to localStorage for programmatic access
+  try {
+    const logs = JSON.parse(localStorage.getItem(DEBUG_LOG_KEY) || '[]');
+    const entry = { t: Date.now(), s: source, m: msg };
+    if (level) entry.l = level;
+    logs.push(entry);
+    if (logs.length > DEBUG_LOG_MAX) logs.splice(0, logs.length - DEBUG_LOG_MAX);
+    localStorage.setItem(DEBUG_LOG_KEY, JSON.stringify(logs));
+  } catch (_) {}
 }

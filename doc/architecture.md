@@ -313,18 +313,33 @@ content-core.js (iframe内)
   → postMessage({ type: 'chatfree-log-msg' })
     → sync-embed.js (父页面)
       → appendDebug('cs', msg)
-        → 渲染到 debug panel
+        → 渲染到 debug panel + 写入 localStorage
 
 background.js
   → chrome.runtime.sendMessage({ type: 'debug' })
     → app.js chrome.runtime.onMessage
       → appendDebug('bg', msg)
-        → 渲染到 debug panel
+        → 渲染到 debug panel + 写入 localStorage
 
 app.js 内部
   → appendDebug('app', msg)
-    → 直接渲染到 debug panel
+    → 直接渲染到 debug panel + 写入 localStorage
 ```
+
+**localStorage 持久化** (`app.js`):
+
+- **Key**: `chatfree_app_log`
+- **最大条目**: 500 条（滚动缓冲区，超出自动截断旧条目）
+- **格式**: JSON 数组，每项 `{ t: timestamp, s: source, m: message, l?: level }`
+  - `t`: Unix 毫秒时间戳
+  - `s`: 来源标识 (`"app"` | `"bg"` | `"cs"`)
+  - `m`: 日志文本
+  - `l`: 日志级别（`"err"` 等，可选）
+- **写入时机**: 每次 `appendDebug()` 调用时同步写入
+- **清除时机**: 用户点击 Clear 按钮时同时清除 DOM 和 localStorage
+- **恢复**: 页面加载时 (`DOMContentLoaded`) 自动从 localStorage 恢复到 debug 面板
+
+外部程序可直接读取 `localStorage.getItem('chatfree_app_log')` 获取调试日志，无需访问 DOM。
 
 ## 关键设计决策
 
