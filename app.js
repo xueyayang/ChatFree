@@ -63,6 +63,12 @@ const utils = {
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', async () => {
+  // Open long-lived port to background for cookie mirroring lifecycle
+  const bgPort = chrome.runtime.connect({ name: 'chatfree-app' });
+  bgPort.onDisconnect.addListener(() => {
+    appendDebug('app', 'Background port lost — cookie mirroring will stop');
+  });
+
   // Init input area module
   inputModule = createInputAreaModule({ container: inputArea, state, utils });
   inputModule.init();

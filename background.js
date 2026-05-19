@@ -29,6 +29,146 @@ chrome.action.onClicked.addListener(() => {
   chrome.tabs.create({ url: chrome.runtime.getURL('index.html') });
 });
 
+// ============================================================
+// Partitioned Cookie Mirroring for cross-origin iframe embedding
+//
+// When sites like Qianwen are embedded in a cross-origin iframe,
+// Chrome blocks third-party cookies. The site detects "not logged in"
+// and triggers navigation → infinite reload loop.
+//
+// Solution: mirror first-party cookies as Partitioned cookies
+// (CHIPS — Cookies Having Independent Partitioned State).
+// Partitioned cookies are scoped to (top-level=extension, embedded=site),
+// so they are available in the iframe but invisible to normal tabs.
+//
+// Lifecycle: active only while the ChatFree app page is connected via port.
+// ============================================================
+
+// Domains to mirror cookies for (add more sites as needed)
+const MIRROR_DOMAINS = ['www.qianwen.com', 'tongyi.aliyun.com'];
+
+// Port-based lifecycle
+let _mirrorPorts = new Set();
+let _mirrorActive = false;
+let _mirrorDebounceTimer = null;
+
+chrome.runtime.onConnect.addListener(function(port) {
+  if (port.name === 'chatfree-app') {
+    _mirrorPorts.add(port);
+    debug('bg', 'App port connected (' + _mirrorPorts.size + ' total)');
+    if (!_mirrorActive) startCookieMirroring();
+
+    port.onDisconnect.addListener(function() {
+      _mirrorPorts.delete(port);
+      debug('bg', 'App port disconnected (' + _mirrorPorts.size + ' remaining)');
+      if (_mirrorPorts.size === 0) stopCookieMirroring();
+    });
+
+    port.postMessage({ type: 'cookie-mirror-status', active: true });
+  }
+});
+
+async function startCookieMirroring() {
+  _mirrorActive = true;
+  debug('bg', 'Cookie mirroring STARTED');
+
+  // Initial full sync
+  await mirrorAllCookies();
+
+  // Listen for cookie changes
+  if (!chrome.cookies.onChanged.hasListener(_onMirrorCookieChanged)) {
+    chrome.cookies.onChanged.addListener(_onMirrorCookieChanged);
+  }
+}
+
+async function stopCookieMirroring() {
+  _mirrorActive = false;
+  debug('bg', 'Cookie mirroring STOPPED');
+
+  if (_mirrorDebounceTimer) {
+    clearTimeout(_mirrorDebounceTimer);
+    _mirrorDebounceTimer = null;
+  }
+
+  if (chrome.cookies.onChanged.hasListener(_onMirrorCookieChanged)) {
+    chrome.cookies.onChanged.removeListener(_onMirrorCookieChanged);
+  }
+
+  // Clean up partitioned copies
+  await removeAllPartitionedCookies();
+}
+
+function _onMirrorCookieChanged(changeInfo) {
+  if (!_mirrorActive) return;
+
+  // Ignore partitioned cookie changes (our own writes)
+  if (changeInfo.cookie.partitionKey) return;
+
+  const domain = changeInfo.cookie.domain || '';
+  if (!MIRROR_DOMAINS.some(function(d) {
+    return domain === d || domain.endsWith('.' + d);
+  })) return;
+
+  // Debounce to batch rapid changes
+  if (_mirrorDebounceTimer) clearTimeout(_mirrorDebounceTimer);
+  _mirrorDebounceTimer = setTimeout(mirrorAllCookies, 1000);
+}
+
+async function mirrorAllCookies() {
+  const partitionKey = { topLevelSite: self.location.origin };
+
+  for (const domain of MIRROR_DOMAINS) {
+    try {
+      const cookies = await chrome.cookies.getAll({ domain });
+      let mirrored = 0;
+      for (const c of cookies) {
+        try {
+          await chrome.cookies.set({
+            url: 'https://' + domain.replace(/^\./, '') + (c.path || '/'),
+            name: c.name,
+            value: c.value,
+            domain: c.domain,
+            path: c.path,
+            secure: c.secure,
+            httpOnly: c.httpOnly,
+            sameSite: c.sameSite,
+            expirationDate: c.expirationDate,
+            partitionKey
+          });
+          mirrored++;
+        } catch (_) { /* individual cookie conflict — skip */ }
+      }
+      debug('bg', 'Cookie mirror: ' + domain + ' — ' + mirrored + '/' + cookies.length + ' cookies');
+    } catch (e) {
+      debug('bg', 'Cookie mirror failed for ' + domain + ': ' + e.message, 'err');
+    }
+  }
+}
+
+async function removeAllPartitionedCookies() {
+  const partitionKey = { topLevelSite: self.location.origin };
+
+  for (const domain of MIRROR_DOMAINS) {
+    try {
+      const cookies = await chrome.cookies.getAll({ domain, partitionKey });
+      let removed = 0;
+      for (const c of cookies) {
+        try {
+          await chrome.cookies.remove({
+            url: 'https://' + domain.replace(/^\./, '') + (c.path || '/'),
+            name: c.name,
+            partitionKey
+          });
+          removed++;
+        } catch (_) {}
+      }
+      if (removed) {
+        debug('bg', 'Cookie mirror cleanup: ' + domain + ' — removed ' + removed + ' partitioned cookies');
+      }
+    } catch (_) { /* domain may have no partitioned cookies */ }
+  }
+}
+
 // ---- Message dispatcher ----
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg.action === 'checkLogin') {

@@ -16,6 +16,13 @@
     // -- Needs visible input for trySend button detection --
     needsVisibleInput: true,
 
+    // -- CSS selector for stylesheet-based hiding (React-managed pages) --
+    hideSelector: '[data-chat-input-shell="true"]',
+
+    // -- Custom hide CSS: opacity-based instead of position:fixed.
+    //    position:fixed breaks Qianwen's flex layout, causing page navigations.
+    hideCSS: 'opacity:0 !important;pointer-events:none !important',
+
     // -- Input selectors (tried in order) --
     inputSelectors: [
       'textarea[placeholder*="问题" i]',
@@ -35,11 +42,17 @@
     //   L3 — return null, hideNativeInput falls back to hiding input only
     findInputContainer(textareaEl) {
       // L1: Alibaba Cloud Console / Tongyi class patterns
-      let el = textareaEl;
-      for (let i = 0; i < 10; i++) {
+      var el = textareaEl;
+      for (var i = 0; i < 10; i++) {
         el = el.parentElement;
         if (!el || el === document.body || el === document.documentElement) break;
-        const cls = el.className || '';
+
+        // New Qianwen design (Tailwind + data-* attrs, no semantic class names)
+        if (el.getAttribute('data-chat-input-shell') === 'true') {
+          return { el: el, method: 'data-shell' };
+        }
+
+        var cls = el.className || '';
         if (typeof cls === 'string' &&
             (cls.includes('chat-input') ||
              cls.includes('input-area') ||
@@ -53,10 +66,10 @@
 
       // L2: geometry — container pinned to viewport bottom.
       el = textareaEl;
-      for (let i = 0; i < 10; i++) {
+      for (i = 0; i < 10; i++) {
         el = el.parentElement;
         if (!el || el === document.body || el === document.documentElement) break;
-        const rect = el.getBoundingClientRect();
+        var rect = el.getBoundingClientRect();
         if (rect.bottom >= window.innerHeight - 30 &&
             rect.height < window.innerHeight * 0.5) {
           return { el: el, method: 'geo(bottom)' };
@@ -85,9 +98,9 @@
     extractSSEText(data) {
       // OpenAI-compatible: { choices: [{ delta: { content: '...' } }] }
       if (data.choices && Array.isArray(data.choices)) {
-        const text = data.choices
-          .map(c => (c.delta && c.delta.content) || c.content || '').join('');
-        return { text, enteredResponse: text.length > 0 };
+        var text = data.choices
+          .map(function(c) { return (c.delta && c.delta.content) || c.content || ''; }).join('');
+        return { text: text, enteredResponse: text.length > 0 };
       }
 
       // Alibaba Cloud / Tongyi service format:
@@ -96,9 +109,9 @@
         if (typeof data.output.text === 'string')
           return { text: data.output.text, enteredResponse: true };
         if (data.output.choices && Array.isArray(data.output.choices)) {
-          const text = data.output.choices
-            .map(c => (c.delta && c.delta.content) || c.content || c.message || '').join('');
-          return { text, enteredResponse: text.length > 0 };
+          var text = data.output.choices
+            .map(function(c) { return (c.delta && c.delta.content) || c.content || c.message || ''; }).join('');
+          return { text: text, enteredResponse: text.length > 0 };
         }
         if (typeof data.output === 'string')
           return { text: data.output, enteredResponse: true };
@@ -106,10 +119,10 @@
 
       // DeepSeek-style: { o: 'APPEND', v: [...] }
       if (data.o === 'APPEND' && Array.isArray(data.v)) {
-        const text = data.v
-          .filter(f => f.type === 'RESPONSE')
-          .map(f => f.content || '').join('');
-        return { text, enteredResponse: text.length > 0 };
+        var text = data.v
+          .filter(function(f) { return f.type === 'RESPONSE'; })
+          .map(function(f) { return f.content || ''; }).join('');
+        return { text: text, enteredResponse: text.length > 0 };
       }
       if (data.o === 'APPEND' && typeof data.v === 'string') {
         return { text: data.v, enteredResponse: true };
