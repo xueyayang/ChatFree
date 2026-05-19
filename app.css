@@ -4,9 +4,14 @@
   padding: 0;
 }
 
+html {
+  width: 480px;
+  height: 620px;
+}
+
 body {
-  width: 100%;
-  height: 100vh;
+  width: 480px;
+  height: 620px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
   color: #e1e5eb;
@@ -14,18 +19,41 @@ body {
   overflow: hidden;
 }
 
+/* ---- Floating mode (injected into AI platform pages) ---- */
+body.floating-mode {
+  width: 100%;
+  height: 100vh;
+  background: #1a1d23;
+  overflow: hidden;
+}
+
+html:has(body.floating-mode) {
+  width: 100%;
+  height: 100%;
+}
+
+body.floating-mode #header {
+  background: #1a1d23;
+  border-bottom-color: #2d323c;
+}
+
+body.floating-mode #input-area {
+  background: #1a1d23;
+}
+
+body.floating-mode #preset-panel {
+  background: #161b22;
+}
+
+body.floating-mode #debug-panel {
+  background: #161b22;
+  max-height: 160px;
+}
+
 #app {
   display: flex;
   flex-direction: column;
   height: 100vh;
-}
-
-/* ---- Main area (embed + debug sidebar) ---- */
-#main-area {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  position: relative;
 }
 
 /* ---- Header ---- */
@@ -98,37 +126,6 @@ body {
   opacity: 1;
 }
 
-/* ---- Panel drop zone highlight ---- */
-#drag-drop-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  /* transparent — captures drag events that would otherwise be swallowed by iframes */
-}
-
-#main-area.drag-side-left {
-  box-shadow: inset 3px 0 0 rgba(0, 212, 255, 0.5);
-}
-
-#main-area.drag-side-right {
-  box-shadow: inset -3px 0 0 rgba(0, 212, 255, 0.5);
-}
-
-.embed-panel:not(.hidden).drag-target {
-  outline: 2px dashed #00d4ff;
-  outline-offset: -2px;
-  background: rgba(0, 212, 255, 0.06);
-}
-
-.embed-panel:not(.hidden).drag-target::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 212, 255, 0.04);
-  pointer-events: none;
-  z-index: 1;
-}
-
 /* ---- Site icon drag reorder ---- */
 .site-icon.dragging {
   opacity: 0.35;
@@ -144,6 +141,7 @@ body {
   margin-right: -2px;
 }
 
+/* ---- DBG toggle ---- */
 #debug-toggle {
   position: absolute;
   right: 14px;
@@ -171,52 +169,28 @@ body {
   color: #7ee787;
 }
 
-#test-btn {
-  padding: 2px 8px;
-  border: 1px solid #3a3f4b;
-  border-radius: 4px;
-  background: transparent;
-  color: #d29922;
-  font-family: inherit;
-  font-size: 11px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-#test-btn:hover {
-  border-color: #d29922;
-  color: #e3b341;
-  background: #1e2228;
-}
-
-#test-btn.running {
-  animation: test-pulse 0.8s ease-in-out infinite;
-}
-
-@keyframes test-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
 /* ---- Input Area ---- */
 #input-area {
-  flex-shrink: 0;
+  flex: 1;
   background: #21252e;
   border-top: 1px solid #2d323c;
   position: relative;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 #input-layout {
   display: flex;
   gap: 0;
-  min-height: 70px;
+  flex: 1;
+  min-height: 0;
 }
 
 /* -- Preset panel (left) -- */
 #preset-panel {
   width: 42%;
-  min-width: 220px;
-  height: 180px;
+  min-width: 180px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
@@ -758,7 +732,7 @@ body {
 #message-input {
   width: 100%;
   resize: none;
-  padding: 8px 92px 8px 12px;
+  padding: 8px 140px 8px 12px;
   border-radius: 10px;
   border: 1px solid #0891b2;
   background: #161b22;
@@ -784,6 +758,44 @@ body {
   color: #555d6b;
 }
 
+/* -- Copy button -- */
+#copy-btn {
+  position: absolute;
+  right: 52px;
+  bottom: 4px;
+  width: 48px;
+  height: 32px;
+  border: 1px solid #0891b2;
+  border-radius: 8px;
+  background: #161b22;
+  color: #06b6d4;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#copy-btn:hover:not(:disabled) {
+  background: #0d2a35;
+  border-color: #06b6d4;
+}
+
+#copy-btn.copied {
+  background: #2d5a3d;
+  border-color: #36854d;
+  color: #7ee787;
+}
+
+#copy-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* -- Send button -- */
 #send-btn {
   position: absolute;
   right: 4px;
@@ -794,9 +806,10 @@ body {
   border-radius: 8px;
   background: #2d5a3d;
   color: #7ee787;
-  font-size: 14px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  flex-shrink: 0;
   transition: background 0.2s, opacity 0.2s;
   display: flex;
   align-items: center;
@@ -813,10 +826,10 @@ body {
   cursor: not-allowed;
 }
 
-/* -- History button (inside textarea, left of send) -- */
+/* -- History button (inside textarea, left of copy) -- */
 #history-btn {
   position: absolute;
-  right: 52px;
+  right: 104px;
   bottom: 4px;
   width: 32px;
   height: 32px;
@@ -988,15 +1001,15 @@ body {
   color: #79c0ff;
 }
 
-/* ---- Debug Sidebar ---- */
+/* ---- Debug Panel ---- */
 #debug-panel {
-  width: 340px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   background: #161b22;
-  border-left: 1px solid #2d323c;
+  border-top: 1px solid #2d323c;
   overflow: hidden;
+  max-height: 200px;
 }
 
 #debug-panel.hidden {
@@ -1007,13 +1020,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 6px 12px;
   border-bottom: 1px solid #2d323c;
   flex-shrink: 0;
 }
 
 #debug-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #99a1b3;
   text-transform: uppercase;
@@ -1062,10 +1075,11 @@ body {
 #debug-log {
   flex: 1;
   overflow-y: auto;
-  padding: 6px 0;
+  padding: 4px 0;
   font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.5;
+  min-height: 40px;
 }
 
 #debug-log::-webkit-scrollbar {
@@ -1082,7 +1096,7 @@ body {
 }
 
 .debug-entry {
-  padding: 3px 12px;
+  padding: 2px 12px;
   border-bottom: 1px solid #1a1d23;
   display: flex;
   gap: 8px;
@@ -1096,13 +1110,13 @@ body {
 .debug-time {
   color: #555d6b;
   flex-shrink: 0;
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .debug-source {
   flex-shrink: 0;
   font-weight: 600;
-  font-size: 9px;
+  font-size: 8px;
   padding: 0 4px;
   border-radius: 3px;
   text-transform: uppercase;
@@ -1137,134 +1151,9 @@ body {
 }
 
 .debug-empty {
-  padding: 24px 16px;
+  padding: 16px 12px;
   text-align: center;
   color: #3a3f4b;
-  font-size: 12px;
+  font-size: 11px;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-}
-
-/* ---- Embed Panels ---- */
-.embed-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-  position: relative;
-}
-
-.embed-panel.hidden {
-  display: none;
-}
-
-.panel-indicator {
-  flex: 1;
-  min-width: 0;
-  background: #2d323c;
-  cursor: pointer;
-  transition: background 0.3s, box-shadow 0.3s;
-}
-
-.panel-indicator:hover {
-  background: #00d4ff;
-  opacity: 0.6;
-}
-
-.panel-indicator.active {
-  background: #00d4ff;
-  box-shadow: 0 -2px 6px rgba(0, 212, 255, 0.8), 0 -6px 14px rgba(0, 212, 255, 0.4), 0 -10px 22px rgba(0, 212, 255, 0.2);
-}
-
-/* ---- Indicator strip (top of main-area, dark background behind glow) ---- */
-#indicator-strip {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  display: flex;
-  z-index: 5;
-}
-
-#main-area:has(#debug-panel:not(.hidden)) #indicator-strip {
-  right: 340px;
-}
-
-/* ---- Panel switch (water-drop at indicator junction) ---- */
-#panel-switch {
-  position: absolute;
-  top: 2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 48px;
-  height: 58px;
-  display: flex;
-  clip-path: path('M 24,0 C 8,3 0,18 0,31 C 0,45 10,56 24,57 C 38,56 48,45 48,31 C 48,18 40,3 24,0 Z');
-  background: #1a1d23;
-  overflow: hidden;
-  z-index: 10;
-  cursor: pointer;
-  transition: filter 0.3s;
-}
-
-#panel-switch.hidden {
-  display: none;
-}
-
-#panel-switch:hover {
-  filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.5)) drop-shadow(0 0 14px rgba(0, 212, 255, 0.2));
-}
-
-.switch-side {
-  flex: 1;
-  min-width: 0;
-  transition: background 0.25s, box-shadow 0.25s;
-  position: relative;
-}
-
-.switch-side.active {
-  background: #00d4ff;
-  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.15), 0 0 10px rgba(0, 212, 255, 0.3);
-}
-
-.switch-side:first-child {
-  border-right: 1px solid rgba(45, 50, 60, 0.6);
-}
-
-.embed-panel iframe {
-  width: 100%;
-  height: 100%;
-  border: none;
-  background: #fff;
-}
-
-#embed-panel-left {
-  border-right: none;
-}
-
-/* ---- Resize gutter (between left/right embed panels) ---- */
-#resize-gutter {
-  width: 4px;
-  flex-shrink: 0;
-  cursor: col-resize;
-  background: #1a1d23;
-  position: relative;
-  z-index: 3;
-  transition: background 0.2s;
-}
-
-#resize-gutter:hover,
-#resize-gutter.dragging {
-  background: #00d4ff;
-}
-
-#resize-gutter.hidden {
-  display: none;
-}
-
-/* ---- Animations ---- */
-@keyframes pulse {
-  0%, 60%, 100% { opacity: 0.3; transform: scale(0.8); }
-  30%           { opacity: 1;   transform: scale(1); }
 }

@@ -1,26 +1,10 @@
 {
   "manifest_version": 3,
   "name": "ChatFree",
-  "version": "0.2.0",
-  "description": "Unified chat interface for DeepSeek and ChatGPT",
-  "permissions": ["cookies", "storage", "scripting", "tabs", "declarativeNetRequestWithHostAccess"],
-  "host_permissions": [
-    "https://chat.deepseek.com/*",
-    "https://chatgpt.com/*",
-    "https://www.doubao.com/*",
-    "https://www.qianwen.com/*",
-    "https://tongyi.aliyun.com/*",
-    "https://gemini.google.com/*"
-  ],
-  "declarative_net_request": {
-    "rule_resources": [
-      {
-        "id": "ruleset_strip_headers",
-        "enabled": true,
-        "path": "rules_headers.json"
-      }
-    ]
-  },
+  "version": "0.3.0",
+  "description": "AI prompt assistant — compose with preset rules and copy to clipboard",
+  "permissions": ["storage"],
+  "host_permissions": ["<all_urls>"],
   "action": {
     "default_title": "ChatFree",
     "default_icon": {
@@ -34,34 +18,22 @@
   },
   "content_scripts": [
     {
-      "matches": ["https://chat.deepseek.com/*"],
-      "js": ["modules/site-deepseek.js", "modules/content-core.js", "content_deepseek.js"],
-      "run_at": "document_idle",
-      "all_frames": true
-    },
+      "matches": ["<all_urls>"],
+      "js": ["content-ui.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
     {
-      "matches": ["https://chatgpt.com/*"],
-      "js": ["modules/site-chatgpt.js", "modules/content-core.js", "content_chatgpt.js"],
-      "run_at": "document_idle",
-      "all_frames": true
-    },
-    {
-      "matches": ["https://www.doubao.com/*"],
-      "js": ["modules/site-doubao.js", "modules/content-core.js", "content_doubao.js"],
-      "run_at": "document_idle",
-      "all_frames": true
-    },
-    {
-      "matches": ["https://www.qianwen.com/*", "https://tongyi.aliyun.com/*"],
-      "js": ["modules/site-qianwen.js", "modules/content-core.js", "content_qianwen.js"],
-      "run_at": "document_idle",
-      "all_frames": true
-    },
-    {
-      "matches": ["https://gemini.google.com/*"],
-      "js": ["modules/site-gemini.js", "modules/content-core.js", "content_gemini.js"],
-      "run_at": "document_idle",
-      "all_frames": true
+      "resources": [
+        "index.html",
+        "app.js",
+        "app.css",
+        "modules/*.js",
+        "icons/*.png",
+        "data/*"
+      ],
+      "matches": ["<all_urls>"]
     }
   ],
   "icons": {

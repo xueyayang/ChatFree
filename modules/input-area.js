@@ -1,17 +1,16 @@
 // modules/input-area.js
-// Input area module — split layout: left preset rules panel, right textarea + buttons.
-// Composes preset-panel.js and history-panel.js. Exposes composed text (rules + user input) for sending.
+// Input area module — preset rules panel + textarea + copy/send buttons.
+// Composes messages and copies to clipboard (no iframe injection).
 //
 // Interface: createInputAreaModule({ container, state, utils })
-//   → { init, getComposedText, clear, setEnabled, onSend, onHistoryResend, dom }
+//   → { init, getComposedText, clear, setEnabled, dom }
 
 import { createPresetPanel } from './preset-panel.js';
 import { createHistoryPanel } from './history-panel.js';
 
 export function createInputAreaModule({ container, state, utils }) {
-  let inputEl, sendBtn, presetPanel, historyPanel;
-  const sendCallbacks = [];
-  const historyResendCallbacks = [];
+  let inputEl, sendBtn, copyBtn, presetPanel, historyPanel;
+  let copyFeedbackTimer = null;
 
   function init() {
     buildUI();
@@ -27,10 +26,10 @@ export function createInputAreaModule({ container, state, utils }) {
       inputEl.focus();
     });
 
-    historyPanel.onResend(({ entry, targetPanel }) => {
+    historyPanel.onResend(({ entry }) => {
       if (entry.text) {
-        historyResendCallbacks.forEach(cb => cb({ composedText: entry.text, targetPanel }));
-        historyPanel.markResent(entry.timestamp);
+        inputEl.value = entry.text;
+        inputEl.focus();
       }
     });
   }
@@ -41,14 +40,15 @@ export function createInputAreaModule({ container, state, utils }) {
         <div id="preset-panel"></div>
         <div id="input-main">
           <div id="input-wrapper">
-            <textarea id="message-input" placeholder="Type a message..." disabled></textarea>
+            <textarea id="message-input" placeholder="Type a message..."></textarea>
             <button id="history-btn" title="History (Ctrl+H)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="12" cy="12" r="10"/>
                 <polyline points="12,6 12,12 16,14"/>
               </svg>
             </button>
-            <button id="send-btn" disabled>Send</button>
+            <button id="copy-btn" title="Copy to clipboard">Copy</button>
+            <button id="send-btn" title="Copy to clipboard">Send</button>
           </div>
         </div>
       </div>
@@ -57,23 +57,22 @@ export function createInputAreaModule({ container, state, utils }) {
 
     inputEl = document.getElementById('message-input');
     sendBtn = document.getElementById('send-btn');
+    copyBtn = document.getElementById('copy-btn');
+
+    copyBtn.addEventListener('click', () => {
+      copyComposed();
+    });
 
     sendBtn.addEventListener('click', () => {
-      const composed = getComposedText();
-      if (composed) {
-        sendCallbacks.forEach(cb => cb(composed));
-        recordToHistory();
-      }
+      copyComposed();
+      recordToHistory();
     });
 
     inputEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
-        const composed = getComposedText();
-        if (composed) {
-          sendCallbacks.forEach(cb => cb(composed));
-          recordToHistory();
-        }
+        copyComposed();
+        recordToHistory();
       }
     });
 
@@ -85,11 +84,37 @@ export function createInputAreaModule({ container, state, utils }) {
     });
   }
 
+  function copyComposed() {
+    const text = getComposedText();
+    if (!text) return;
+
+    navigator.clipboard.writeText(text).then(() => {
+      showCopyFeedback();
+      if (utils.appendDebug) {
+        utils.appendDebug('app', `Copied ${text.length} chars to clipboard`);
+      }
+    }).catch(() => {
+      if (utils.appendDebug) {
+        utils.appendDebug('app', 'Clipboard write failed', 'err');
+      }
+    });
+  }
+
+  function showCopyFeedback() {
+    if (copyFeedbackTimer) clearTimeout(copyFeedbackTimer);
+    copyBtn.textContent = 'Copied!';
+    copyBtn.classList.add('copied');
+    copyFeedbackTimer = setTimeout(() => {
+      copyBtn.textContent = 'Copy';
+      copyBtn.classList.remove('copied');
+      copyFeedbackTimer = null;
+    }, 1500);
+  }
+
   function recordToHistory() {
     const composed = getComposedText();
     if (!composed || !historyPanel) return;
-    const targetSite = (state.panels && state.panels[state.activePanel]) || '';
-    historyPanel.record(composed, targetSite, state.activePanel);
+    historyPanel.record(composed, state.activeSite || '', 'left');
   }
 
   function getComposedText() {
@@ -109,15 +134,14 @@ export function createInputAreaModule({ container, state, utils }) {
   function setEnabled(enabled) {
     inputEl.disabled = !enabled;
     sendBtn.disabled = !enabled;
+    copyBtn.disabled = !enabled;
   }
-
-  function onSend(callback) { sendCallbacks.push(callback); }
-  function onHistoryResend(callback) { historyResendCallbacks.push(callback); }
 
   const dom = {
     get inputEl() { return inputEl; },
     get sendBtn() { return sendBtn; },
+    get copyBtn() { return copyBtn; }
   };
 
-  return { init, getComposedText, clear, setEnabled, onSend, onHistoryResend, dom };
+  return { init, getComposedText, clear, setEnabled, dom };
 }

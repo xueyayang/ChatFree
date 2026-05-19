@@ -1,270 +1,96 @@
-// app.js - ChatFree standalone page UI logic
-// Embed-only: loads AI platform in iframe, forwards input via postMessage.
-// Supports dual-panel vertical split for viewing two sites simultaneously.
+// app.js - ChatFree compose-and-copy assistant
+// Two modes: popup (standalone window) and floating (injected via iframe into AI platforms).
+// Compose messages with preset rules, copy to clipboard, paste manually.
 
-import { createEmbedSyncModule } from './modules/sync-embed.js';
 import { createInputAreaModule } from './modules/input-area.js';
-
-// ---- Backend config ----
-const BACKEND_LABELS = { deepseek: 'DeepSeek', chatgpt: 'ChatGPT', doubao: '豆包', qianwen: '千问', gemini: 'Gemini' };
 
 // ---- localStorage debug log ----
 const DEBUG_LOG_KEY = 'chatfree_app_log';
 const DEBUG_LOG_MAX = 500;
 
-// ---- Shared state ----
+// ---- Mode detection ----
+const MODE_FLOATING = new URLSearchParams(location.search).get('mode') === 'floating';
+
+// ---- State ----
 const state = {
-  panels: { left: 'doubao', right: 'qianwen' },  // which site is in each panel (null = empty)
-  activePanel: 'left',  // which panel receives input: 'left' | 'right'
-  splitRatio: 0.5,  // left panel fraction of available width
-  requestId: 0
+  activeSite: detectSite()  // which site icon is selected (for history tracking)
 };
 
-function activeCount() { return (state.panels.left ? 1 : 0) + (state.panels.right ? 1 : 0); }
-function bothActive() { return !!(state.panels.left && state.panels.right); }
-function panelSite(side) { return state.panels[side] || null; }
-function sitePanel(site) { return state.panels.left === site ? 'left' : state.panels.right === site ? 'right' : null; }
+function detectSite() {
+  if (MODE_FLOATING) {
+    try {
+      const parentUrl = document.referrer || '';
+      if (parentUrl.includes('chat.deepseek.com')) return 'deepseek';
+      if (parentUrl.includes('chatgpt.com')) return 'chatgpt';
+      if (parentUrl.includes('doubao.com')) return 'doubao';
+      if (parentUrl.includes('qianwen.com') || parentUrl.includes('tongyi.aliyun.com')) return 'qianwen';
+      if (parentUrl.includes('gemini.google.com')) return 'gemini';
+    } catch (_) {}
+  }
+  return 'deepseek';
+}
 
 const $ = (sel) => document.querySelector(sel);
 
 // ---- DOM refs ----
 const siteIcons = document.querySelectorAll('.site-icon');
-const panelLeft = $('#embed-panel-left');
-const panelRight = $('#embed-panel-right');
 const inputArea = $('#input-area');
 const debugToggle = $('#debug-toggle');
 const debugPanel = $('#debug-panel');
 const debugLog = $('#debug-log');
-const debugClear = $('#debug-clear');
-const testBtn = $('#test-btn');
-const panelSwitch = $('#panel-switch');
-const indicatorLeft = $('#indicator-left');
-const indicatorRight = $('#indicator-right');
-const indicatorStrip = $('#indicator-strip');
-const panelIndicators = { left: indicatorLeft, right: indicatorRight };
-const resizeGutter = $('#resize-gutter');
-
-// ---- Active modules ----
-const panelModules = { left: null, right: null };
-let inputModule = null;
-
-// Shared DOM bundle for modules
-function makePanelDom(backend, container) {
-  return {
-    get inputEl() { return inputModule ? inputModule.dom.inputEl : null; },
-    get sendBtn() { return inputModule ? inputModule.dom.sendBtn : null; },
-    get statusDot() { return null; },
-    get statusText() { return null; },
-    get backendLabel() { return BACKEND_LABELS[backend]; },
-    get containerEl() { return container; }
-  };
-}
-
-// Shared utilities
-const utils = {
-  appendDebug
-};
 
 // ---- Init ----
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
+  if (MODE_FLOATING) {
+    document.body.classList.add('floating-mode');
+  }
+
   restoreDebugLog();
 
-  // Open long-lived port to background for cookie mirroring lifecycle
-  const bgPort = chrome.runtime.connect({ name: 'chatfree-app' });
-  bgPort.onDisconnect.addListener(() => {
-    appendDebug('app', 'Background port lost — cookie mirroring will stop');
-  });
-
   // Init input area module
-  inputModule = createInputAreaModule({ container: inputArea, state, utils });
+  const inputModule = createInputAreaModule({ container: inputArea, state, utils });
   inputModule.init();
 
-  inputModule.onSend((text) => {
-    const mod = panelModules[state.activePanel];
-    if (mod) mod.module.send(text);
-  });
-
-  inputModule.onHistoryResend(({ composedText, targetPanel }) => {
-    const mod = panelModules[targetPanel];
-    if (mod) mod.module.send(composedText);
-  });
-
-  // Site icon clicks
+  // Site icon clicks — highlight selection
   siteIcons.forEach(icon => {
-    icon.addEventListener('click', () => toggleSite(icon.dataset.site));
+    icon.addEventListener('click', () => selectSite(icon.dataset.site));
   });
 
   // Site icon drag-to-reorder
   initIconDragReorder();
 
+  // Debug panel (hidden by default in floating mode)
+  if (MODE_FLOATING) {
+    debugPanel.classList.add('hidden');
+  }
   debugToggle.addEventListener('click', toggleDebugPanel);
-  debugClear.addEventListener('click', clearDebugLog);
-  testBtn.addEventListener('click', runDiagnostics);
+  document.getElementById('debug-clear').addEventListener('click', clearDebugLog);
   document.getElementById('debug-copy').addEventListener('click', copyDebugLog);
 
-  // Panel indicators (click to switch active panel)
-  for (const side of ['left', 'right']) {
-    panelIndicators[side].addEventListener('mousedown', () => {
-      appendDebug('app', `indicator mousedown → activePanel: ${state.activePanel} → ${side}`);
-      if (state.activePanel !== side) {
-        state.activePanel = side;
-        updateIndicators();
-      }
-    });
-  }
+  // Initial selection
+  updateSiteIconStates();
 
-  // Panel switch (center pill at indicator junction)
-  panelSwitch.addEventListener('click', (e) => {
-    const side = e.target.closest('.switch-side')?.dataset.side;
-    if (side && state.activePanel !== side && panelModules[side]) {
-      appendDebug('app', `Switch click → activePanel: ${state.activePanel} → ${side}`);
-      state.activePanel = side;
-      updateIndicators();
-    }
-  });
-
-  chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.type === 'debug') {
-      appendDebug(msg.source || 'bg', msg.message, msg.level);
-    }
-  });
-
-  // Initial layout
-  renderLayout();
-
-  appendDebug('app', 'Ready');
+  appendDebug('app', `Ready (${MODE_FLOATING ? 'floating' : 'popup'} mode, site=${state.activeSite})`);
 });
 
-// ---- Diagnostics ----
-function runDiagnostics() {
-  testBtn.classList.add('running');
-  testBtn.disabled = true;
-  const t0 = Date.now();
-  appendDebug('app', '========== EMBED DIAGNOSTICS ==========');
-  appendDebug('app', '[TEST] Active sites: ' + [state.panels.left, state.panels.right].filter(Boolean).join(', '));
-  appendDebug('app', '[TEST] Active panel: ' + state.activePanel);
+// ---- Site selection ----
+function selectSite(site) {
+  state.activeSite = site;
+  updateSiteIconStates();
+  appendDebug('app', `Site selected: ${site}`);
+}
 
-  // 1. Run content-script diagnose on each active panel
-  for (const side of ['left', 'right']) {
-    const mod = panelModules[side];
-    if (mod) {
-      appendDebug('app', '[TEST] --- Diagnosing ' + side + ' panel (' + mod.backend + ') ---');
-      mod.module.sendDiagnose();
-    } else {
-      appendDebug('app', '[TEST] ' + side + ' panel: not loaded');
-    }
-  }
-
-  // 2. Connectivity test via background service worker
-  const sitesToTest = [...new Set([state.panels.left, state.panels.right, 'chatgpt'].filter(Boolean))];
-  sitesToTest.forEach(site => {
-    chrome.runtime.sendMessage({
-      action: 'testConnectivity',
-      site: site
-    }).then(result => {
-      appendDebug('app', '[TEST] Connectivity ' + site + ': ' + JSON.stringify(result));
-    }).catch(err => {
-      appendDebug('app', '[TEST] Connectivity ' + site + ': ERROR ' + err.message, 'err');
-    });
+function updateSiteIconStates() {
+  siteIcons.forEach(icon => {
+    icon.classList.toggle('active', icon.dataset.site === state.activeSite);
   });
-
-  // 3. Check declarativeNetRequest rules
-  chrome.declarativeNetRequest.getDynamicRules().then(rules => {
-    appendDebug('app', '[TEST] Dynamic DNR rules: ' + rules.length);
-  }).catch(() => {});
-
-  chrome.declarativeNetRequest.getEnabledRulesets().then(rulesets => {
-    appendDebug('app', '[TEST] Enabled rulesets: ' + JSON.stringify(rulesets));
-  }).catch(() => {});
-
-  setTimeout(() => {
-    testBtn.classList.remove('running');
-    testBtn.disabled = false;
-    appendDebug('app', '[TEST] ========== Diagnostics complete +' + (Date.now() - t0) + 'ms ==========');
-  }, 3000);
-}
-
-// ---- Site toggle ----
-function toggleSite(site) {
-  const currentSide = sitePanel(site);
-  if (currentSide) {
-    // Already active — switch focus to its panel, or double-click to deactivate
-    if (state.activePanel !== currentSide) {
-      appendDebug('app', `Icon click → switch focus: ${state.activePanel} → ${currentSide}`);
-      state.activePanel = currentSide;
-      updateIndicators();
-    } else {
-      // Double-click active icon → deactivate
-      state.panels[currentSide] = null;
-      renderLayout();
-    }
-  } else {
-    // Activate new site — fill left first, then right; if both full, replace right
-    if (!state.panels.left) {
-      state.panels.left = site;
-    } else if (!state.panels.right) {
-      state.panels.right = site;
-    } else {
-      const old = state.panels.right;
-      document.querySelector(`.site-icon[data-site="${old}"]`)?.classList.remove('active');
-      state.panels.right = site;
-    }
-    renderLayout();
-    state.activePanel = sitePanel(site) || 'left';
-    updateIndicators();
-  }
-}
-
-function openSiteInPanel(site, side) {
-  const currentSide = sitePanel(site);
-  const otherSide = side === 'left' ? 'right' : 'left';
-
-  if (currentSide === side) {
-    // Already in target panel — just focus it
-    if (state.activePanel !== side) {
-      state.activePanel = side;
-      updateIndicators();
-    }
-    return;
-  }
-
-  if (currentSide === otherSide) {
-    // Site is in the other panel — swap or move it
-    const displaced = state.panels[side];
-    if (displaced) {
-      // Both panels occupied — swap
-      state.panels[otherSide] = displaced;
-      state.panels[side] = site;
-    } else {
-      // Only other panel occupied — move to target
-      state.panels[side] = site;
-      state.panels[otherSide] = null;
-    }
-  } else {
-    // New site — place in target panel, replacing if occupied
-    const old = state.panels[side];
-    if (old) {
-      document.querySelector(`.site-icon[data-site="${old}"]`)?.classList.remove('active');
-    }
-    // If site is replacing the other panel... no, that's only for the same side
-    // Check if site already occupies the OTHER side (handled above)
-    state.panels[side] = site;
-  }
-
-  state.activePanel = side;
-  renderLayout();
-  updateIndicators();
-  appendDebug('app', `Drag → ${site} opened in ${side} panel`);
 }
 
 // ---- Icon drag reorder ----
 function initIconDragReorder() {
   const container = document.getElementById('site-icons');
-  const mainArea = $('#main-area');
   let dragSrc = null;
-  let dropOverlay = null;
 
-  // Restore saved order
   const saved = localStorage.getItem('iconOrder');
   if (saved) {
     try {
@@ -276,66 +102,6 @@ function initIconDragReorder() {
     } catch (_) { /* ignore */ }
   }
 
-  function getDropSide(e) {
-    const rect = mainArea.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const debugWidth = debugPanel.classList.contains('hidden') ? 0 : 340;
-    const gutterWidth = bothActive() ? 4 : 0;
-    const available = rect.width - debugWidth - gutterWidth;
-    const midX = bothActive()
-      ? available * state.splitRatio
-      : available / 2;
-    return x < midX ? 'left' : 'right';
-  }
-
-  function highlightDropTarget(side) {
-    mainArea.classList.remove('drag-side-left', 'drag-side-right');
-    mainArea.classList.add(side === 'left' ? 'drag-side-left' : 'drag-side-right');
-    if (!panelLeft.classList.contains('hidden')) {
-      panelLeft.classList.toggle('drag-target', side === 'left');
-    }
-    if (!panelRight.classList.contains('hidden')) {
-      panelRight.classList.toggle('drag-target', side === 'right');
-    }
-  }
-
-  function clearDropHighlights() {
-    panelLeft.classList.remove('drag-target');
-    panelRight.classList.remove('drag-target');
-    mainArea.classList.remove('drag-side-left', 'drag-side-right');
-  }
-
-  function removeDropOverlay() {
-    if (dropOverlay) {
-      dropOverlay.remove();
-      dropOverlay = null;
-    }
-    clearDropHighlights();
-  }
-
-  function createDropOverlay() {
-    if (dropOverlay) return;
-    dropOverlay = document.createElement('div');
-    dropOverlay.id = 'drag-drop-overlay';
-    dropOverlay.style.cssText = 'position:absolute;inset:0;z-index:50;';
-    dropOverlay.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      highlightDropTarget(getDropSide(e));
-    });
-    dropOverlay.addEventListener('dragleave', () => {
-      clearDropHighlights();
-    });
-    dropOverlay.addEventListener('drop', (e) => {
-      e.preventDefault();
-      const site = e.dataTransfer.getData('text/plain');
-      appendDebug('app', `Drop on panel area: site=${site} side=${getDropSide(e)} panels=${JSON.stringify(state.panels)}`);
-      if (site) openSiteInPanel(site, getDropSide(e));
-      removeDropOverlay();
-    });
-    mainArea.appendChild(dropOverlay);
-  }
-
   container.addEventListener('dragstart', (e) => {
     const icon = e.target.closest('.site-icon');
     if (!icon) return;
@@ -343,9 +109,6 @@ function initIconDragReorder() {
     icon.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', icon.dataset.site);
-    // Overlay needed to capture drops over iframes in the panels
-    createDropOverlay();
-    appendDebug('app', `Drag start: ${icon.dataset.site}`);
   });
 
   container.addEventListener('dragover', (e) => {
@@ -398,8 +161,6 @@ function initIconDragReorder() {
     container.querySelectorAll('.site-icon').forEach(el => {
       el.classList.remove('drag-target-left', 'drag-target-right');
     });
-    appendDebug('app', `Drag end`);
-    removeDropOverlay();
     dragSrc = null;
   });
 }
@@ -413,174 +174,10 @@ function saveIconOrder() {
   localStorage.setItem('iconOrder', JSON.stringify(order));
 }
 
-// ---- Layout rendering ----
-function renderLayout() {
-  // Update icon states
-  siteIcons.forEach(icon => {
-    icon.classList.toggle('active', sitePanel(icon.dataset.site) !== null);
-  });
-
-  // Left panel
-  if (state.panels.left) {
-    loadPanel('left', state.panels.left);
-  } else {
-    unloadPanel('left');
-  }
-
-  // Right panel
-  if (state.panels.right) {
-    loadPanel('right', state.panels.right);
-  } else {
-    unloadPanel('right');
-  }
-
-  // If active panel was unloaded, switch to the other
-  if (!panelModules[state.activePanel]) {
-    state.activePanel = state.activePanel === 'left' ? 'right' : 'left';
-  }
-
-  // Show center switch & gutter only when both panels are active
-  const both = bothActive();
-  panelSwitch.classList.toggle('hidden', !both);
-  resizeGutter.classList.toggle('hidden', !both);
-
-  applySplit();
-  updateIndicators();
-}
-
-function updateIndicators() {
-  for (const side of ['left', 'right']) {
-    const mod = panelModules[side];
-    const indicator = panelIndicators[side];
-    if (indicator) {
-      indicator.classList.toggle('active', !!(mod && state.activePanel === side));
-    }
-  }
-  // Update switch halves
-  const leftSide = panelSwitch.querySelector('.switch-side.left');
-  const rightSide = panelSwitch.querySelector('.switch-side.right');
-  if (leftSide) leftSide.classList.toggle('active', state.activePanel === 'left');
-  if (rightSide) rightSide.classList.toggle('active', state.activePanel === 'right');
-}
-
-// ---- Panel management ----
-function loadPanel(side, backend) {
-  const panel = side === 'left' ? panelLeft : panelRight;
-  const current = panelModules[side];
-
-  if (current && current.backend === backend) return;
-
-  if (current) {
-    current.module.stop();
-    panelModules[side] = null;
-  }
-
-  appendDebug('app', `Loading ${backend} in ${side} panel`);
-
-  const container = document.createElement('div');
-  container.style.cssText = 'flex:1;min-height:0;position:relative;';
-
-  panel.innerHTML = '';
-  panel.appendChild(container);
-  panel.classList.remove('hidden');
-
-  const panelDom = makePanelDom(backend, container);
-  const module = createEmbedSyncModule({
-    state: { backend, loggedIn: false, requestId: 0 },
-    dom: panelDom,
-    utils: { appendDebug }
-  });
-
-  module.init();
-  const indicator = panelIndicators[side];
-  panelModules[side] = { module, backend, indicator };
-}
-
-function unloadPanel(side) {
-  const panel = side === 'left' ? panelLeft : panelRight;
-  const current = panelModules[side];
-  if (current) {
-    current.module.stop();
-    panelModules[side] = null;
-  }
-  panel.classList.add('hidden');
-  panel.innerHTML = '';
-}
-
-// ---- Panel split resizing ----
-function applySplit() {
-  const both = bothActive();
-  if (!both) {
-    panelLeft.style.flex = '';
-    panelRight.style.flex = '';
-    indicatorLeft.style.flex = '';
-    indicatorRight.style.flex = '';
-    panelSwitch.style.left = '';
-    return;
-  }
-
-  const debugVisible = !debugPanel.classList.contains('hidden');
-  const gutterWidth = 4;
-  const debugWidth = debugVisible ? 340 : 0;
-  const available = $('#main-area').clientWidth - debugWidth - gutterWidth;
-
-  const leftWidth = available * state.splitRatio;
-
-  panelLeft.style.flex = `0 0 ${leftWidth}px`;
-  panelRight.style.flex = '1 1 0%';
-
-  indicatorLeft.style.flex = `0 0 ${leftWidth}px`;
-  indicatorRight.style.flex = '1 1 0%';
-
-  panelSwitch.style.left = `${leftWidth + gutterWidth / 2}px`;
-}
-
-// ---- Gutter drag ----
-resizeGutter.addEventListener('mousedown', (e) => {
-  e.preventDefault();
-
-  const mainArea = $('#main-area');
-  const debugVisible = !debugPanel.classList.contains('hidden');
-  const debugWidth = debugVisible ? 340 : 0;
-  const gutterWidth = 4;
-
-  const overlay = document.createElement('div');
-  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;cursor:col-resize;';
-  document.body.appendChild(overlay);
-
-  resizeGutter.classList.add('dragging');
-
-  const onMove = (e) => {
-    const rect = mainArea.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const available = mainArea.clientWidth - debugWidth - gutterWidth;
-    state.splitRatio = Math.max(0.15, Math.min(0.85, x / available));
-    applySplit();
-  };
-
-  const onUp = () => {
-    overlay.remove();
-    resizeGutter.classList.remove('dragging');
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup', onUp);
-  };
-
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup', onUp);
-});
-
-window.addEventListener('resize', () => {
-  if (bothActive()) {
-    applySplit();
-  }
-});
-
 // ---- Debug panel ----
 function toggleDebugPanel() {
   const visible = debugPanel.classList.toggle('hidden');
   debugToggle.classList.toggle('active', !visible);
-  indicatorStrip.style.right = visible ? '340px' : '0';
-  applySplit();
 }
 
 function restoreDebugLog() {
@@ -668,7 +265,6 @@ function appendDebug(source, msg, level) {
     debugLog.firstElementChild.remove();
   }
 
-  // Persist to localStorage for programmatic access
   try {
     const logs = JSON.parse(localStorage.getItem(DEBUG_LOG_KEY) || '[]');
     const entry = { t: Date.now(), s: source, m: msg };
@@ -678,3 +274,8 @@ function appendDebug(source, msg, level) {
     localStorage.setItem(DEBUG_LOG_KEY, JSON.stringify(logs));
   } catch (_) {}
 }
+
+// ---- Utilities ----
+const utils = {
+  appendDebug
+};
