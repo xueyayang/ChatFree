@@ -9,206 +9,6 @@
 
 (function() {
   // ============================================================
-  // Navigation tracer — MAIN world injection
-  // Isolated-world overrides CANNOT block page-initiated navigations.
-  // We inject a <script> into the page's MAIN world to intercept every
-  // navigation API and record the stack trace before allowing the nav.
-  // ============================================================
-  var _navTrace = [];
-  var MAIN_TRACE_KEY = 'chatfree_main_nav_trace';
-
-  function _traceNav(method, arg) {
-    // Consolidated in MAIN-world script; this is a no-op in isolated world.
-  }
-
-  // Inject navigation interceptor into the page's MAIN world via Blob URL.
-  // textContent injection is blocked by CSP meta tags. Blob URL bypasses
-  // inline-script restrictions (CSP 'unsafe-inline' requirement).
-  function injectMainWorldNavTracer() {
-    if (document.getElementById('chatfree-main-nav-tracer')) return;
-
-    var scriptCode = '(' + function() {
-      // --- IMMEDIATE marker: proves this script ran in the MAIN world ---
-      try {
-        document.documentElement.setAttribute('data-chatfree-mainworld', '1');
-      } catch (_) {}
-
-      // --- Also write via document.title modification (proof of execution) ---
-      try {
-        document.documentElement.setAttribute('data-chatfree-inject-ts', String(Date.now()));
-      } catch (_) {}
-
-      var KEY = 'chatfree_main_nav_trace';
-      var traces = [];
-
-      function record(method, extra) {
-        // DOM attribute trace — readable by isolated world
-        try {
-          var prev = document.documentElement.getAttribute('data-chatfree-nav') || '';
-          var entry = '|' + method + '@' + Date.now();
-          if (prev.length < 4000) {
-            document.documentElement.setAttribute('data-chatfree-nav', prev + entry);
-          }
-        } catch (_) {}
-
-        var stack = '';
-        try { throw new Error(); } catch (e) {
-          stack = (e.stack || '').split('\n').slice(2, 8).join(' < ');
-        }
-        traces.push({
-          t: Date.now(),
-          m: method,
-          a: String(extra || '').slice(0, 200),
-          s: stack.slice(0, 400)
-        });
-        if (traces.length > 30) traces.splice(0, traces.length - 30);
-        try { localStorage.setItem(KEY, JSON.stringify(traces)); } catch (_) {}
-      }
-
-      // Initial record
-      record('script:boot:v3', 'url=' + window.location.href.slice(0, 100) +
-        ' top=' + (window.top !== window.self) +
-        ' name=' + (function(){try{return window.name}catch(_){return 'err'}})());
-
-      // --- Detect meta CSP / meta refresh ---
-      try {
-        var metas = document.querySelectorAll('meta[http-equiv]');
-        for (var i = 0; i < metas.length; i++) {
-          var m = metas[i];
-          var httpEquiv = (m.getAttribute('http-equiv') || '').toLowerCase();
-          if (httpEquiv === 'refresh') {
-            record('meta:refresh', m.getAttribute('content') || '?');
-          }
-          if (httpEquiv === 'content-security-policy') {
-            record('meta:csp', (m.getAttribute('content') || '').slice(0, 200));
-          }
-        }
-      } catch (_) {}
-
-      // --- location.reload (via Location.prototype) ---
-      try {
-        var LocationProto = window.Location.prototype;
-        var origReload = LocationProto.reload;
-        LocationProto.reload = function() {
-          record('location.reload', '');
-          return origReload.call(this);
-        };
-      } catch (_) {}
-
-      // --- location.replace (via Location.prototype) ---
-      try {
-        var LocationProto2 = window.Location.prototype;
-        var origReplace = LocationProto2.replace;
-        LocationProto2.replace = function(url) {
-          record('location.replace', String(url || '').slice(0, 200));
-          return origReplace.call(this, url);
-        };
-      } catch (_) {}
-
-      // --- location.assign (via Location.prototype) ---
-      try {
-        var LocationProto3 = window.Location.prototype;
-        var origAssign = LocationProto3.assign;
-        LocationProto3.assign = function(url) {
-          record('location.assign', String(url || '').slice(0, 200));
-          return origAssign.call(this, url);
-        };
-      } catch (_) {}
-
-      // --- history ---
-      try {
-        var origPush = window.history.pushState;
-        window.history.pushState = function(s, t, url) {
-          record('history.pushState', String(url || ''));
-          return origPush.apply(this, arguments);
-        };
-        var origReplace = window.history.replaceState;
-        window.history.replaceState = function(s, t, url) {
-          record('history.replaceState', String(url || ''));
-          return origReplace.apply(this, arguments);
-        };
-      } catch (_) {}
-
-      // --- document.location setter ---
-      try {
-        var desc = Object.getOwnPropertyDescriptor(Document.prototype, 'location') ||
-                   Object.getOwnPropertyDescriptor(HTMLDocument.prototype, 'location');
-        if (desc && desc.set) {
-          var origSet = desc.set;
-          Object.defineProperty(document, 'location', {
-            get: desc.get || function() { return window.location; },
-            set: function(val) {
-              record('document.location=', String(val || '').slice(0, 200));
-              return origSet.call(document, val);
-            },
-            configurable: true, enumerable: true
-          });
-        }
-      } catch (_) {}
-
-      // --- beforeunload ---
-      window.addEventListener('beforeunload', function() {
-        record('beforeunload:v3', window.location.href);
-        try { localStorage.setItem(KEY, JSON.stringify(traces)); } catch (_) {}
-      });
-
-    } + ')();';
-
-    // Build the full script source
-    var fullSource = scriptCode;
-
-    // Method A: Blob URL (bypasses inline-script CSP restrictions)
-    try {
-      var blob = new Blob([fullSource], { type: 'text/javascript' });
-      var blobUrl = URL.createObjectURL(blob);
-      var script = document.createElement('script');
-      script.id = 'chatfree-main-nav-tracer';
-      script.src = blobUrl;
-      script.onload = function() {
-        URL.revokeObjectURL(blobUrl);
-      };
-      script.onerror = function() {
-        // Blob URL failed — fall through to Method B
-        try { URL.revokeObjectURL(blobUrl); } catch (_) {}
-        injectViaTextContent(fullSource);
-      };
-      (document.head || document.documentElement).appendChild(script);
-      return;
-    } catch (_) {
-      // Blob creation failed — try Method B
-      injectViaTextContent(fullSource);
-    }
-  }
-
-  function injectViaTextContent(scriptCode) {
-    var script = document.createElement('script');
-    script.id = 'chatfree-main-nav-tracer';
-    // Trusted Types fallback
-    if (typeof window.trustedTypes !== 'undefined' && window.trustedTypes.createPolicy) {
-      try {
-        var policy = window.trustedTypes.createPolicy('chatfreeNavTracerV3', {
-          createScript: function(src) { return src; }
-        });
-        script.textContent = policy.createScript(scriptCode);
-      } catch (_) {
-        script.textContent = scriptCode;
-      }
-    } else {
-      script.textContent = scriptCode;
-    }
-    (document.head || document.documentElement).appendChild(script);
-  }
-
-  // Inject the main-world tracer as early as possible
-  injectMainWorldNavTracer();
-
-  // Verification: also set a DOM marker directly from isolated world
-  // to prove DOM access works (vs script injection failure)
-  try {
-    document.documentElement.setAttribute('data-chatfree-isolated-test', '1');
-  } catch (_) {}
-
-  // ============================================================
   // Embed detection
   // ============================================================
   var IS_EMBEDDED = false;
@@ -228,55 +28,8 @@
   function earlyLog(msg, level) { _earlyLogs.push({ msg: msg, level: level }); }
   earlyLog('[DIAG] Step 1: embed detection — embedded=' + IS_EMBEDDED + ' reason=' + embedReason + ' top=' + (window.top !== window.self) + ' name=' + (function(){try{return window.name}catch(_){return 'err'}})());
 
-  // Skip non-embed iframes BUT still leave nav tracer active for diagnostics
+  // Skip non-embed iframes
   if (window.top !== window.self && !IS_EMBEDDED) return;
-
-  // ============================================================
-  // Verify MAIN-world injection
-  // ============================================================
-  earlyLog('[DIAG] Step 1.5: MAIN-world injection check —');
-  var mainWorldOk = document.documentElement.getAttribute('data-chatfree-mainworld');
-  var isolatedOk = document.documentElement.getAttribute('data-chatfree-isolated-test');
-  earlyLog('[DIAG]   data-chatfree-mainworld (MAIN via script) = ' + (mainWorldOk || '(MISSING)'));
-  earlyLog('[DIAG]   data-chatfree-isolated-test (ISO direct) = ' + (isolatedOk || '(MISSING)'));
-  earlyLog('[DIAG]   data-chatfree-inject-ts = ' + (document.documentElement.getAttribute('data-chatfree-inject-ts') || '(MISSING)'));
-  var mainNavDom = document.documentElement.getAttribute('data-chatfree-nav') || '';
-  earlyLog('[DIAG]   data-chatfree-nav = ' + (mainNavDom || '(empty)'));
-  if (!mainWorldOk) {
-    earlyLog('[DIAG]   >> MAIN-world injection FAILED. Script did not execute.', 'err');
-    if (isolatedOk) {
-      earlyLog('[DIAG]   >> Isolated-world DOM write works, so DOM access is fine.');
-      earlyLog('[DIAG]   >> Likely CSP: script-src blocks inline/blob, or Trusted Types enforced.');
-    } else {
-      earlyLog('[DIAG]   >> Even isolated-world DOM write failed — unexpected!', 'err');
-    }
-  } else {
-    earlyLog('[DIAG]   >> MAIN-world injection SUCCESS. Script is alive.');
-  }
-
-  // ============================================================
-  // Dump nav trace from previous page load (MAIN world traces)
-  // ============================================================
-  try {
-    // nav-guard.js saves previous page trace under _prev key before starting fresh
-    var prevMainTrace = localStorage.getItem('chatfree_main_nav_prev') ||
-                        localStorage.getItem(MAIN_TRACE_KEY);
-    if (prevMainTrace) {
-      earlyLog('[NAV] PREVIOUS PAGE MAIN-WORLD NAV TRACE: ' + prevMainTrace.slice(0, 1000), 'warn');
-      try { localStorage.removeItem('chatfree_main_nav_prev'); } catch (_) {}
-      try { localStorage.removeItem(MAIN_TRACE_KEY); } catch (_) {}
-    } else {
-      earlyLog('[NAV] No MAIN-world nav trace from previous page (no navigation detected or trace was lost)');
-    }
-  } catch (_) {}
-
-  try {
-    var prevTrace = localStorage.getItem('chatfree_nav_trace');
-    if (prevTrace) {
-      earlyLog('[NAV] Previous page nav trace (isolated): ' + prevTrace.slice(0, 500));
-      localStorage.removeItem('chatfree_nav_trace');
-    }
-  } catch (_) {}
 
   // ============================================================
   // Adapter reference (set by modules/site-*.js loaded before us)
@@ -757,9 +510,6 @@
     var navType = '';
     try { navType = (performance.getEntriesByType('navigation')[0] || {}).type || ''; } catch (_) {}
     dbg('[NAV] beforeunload phase=' + _initPhase + ' navType=' + navType + ' url=' + location.href, 'warn');
-    var entry = { t: Date.now(), m: '[NAV] beforeunload phase=' + _initPhase + ' navTrace=' + JSON.stringify(_navTrace.slice(-3)), l: 'warn' };
-    _localLog.push(entry);
-    try { localStorage.setItem(LOCAL_LOG_KEY, JSON.stringify(_localLog)); } catch (_) {}
   });
 
   // ============================================================
@@ -866,15 +616,6 @@
     dbg('[DIAG] Injection ID: ' + report.injectionId);
     dbg('[DIAG] URL: ' + report.url);
     dbg('[DIAG] Init phase: ' + _initPhase);
-    dbg('[DIAG] Nav trace entries (isolated): ' + _navTrace.length);
-    try {
-      var liveMainTrace = localStorage.getItem(MAIN_TRACE_KEY);
-      if (liveMainTrace) {
-        dbg('[DIAG] MAIN-world nav trace (live): ' + liveMainTrace.slice(0, 600));
-      } else {
-        dbg('[DIAG] MAIN-world nav trace: (empty — no navigations captured in main world)');
-      }
-    } catch (_) { dbg('[DIAG] MAIN-world nav trace: (read error)'); }
 
     var visInput = findInput(true);
     var hidInput = findInput(false);
