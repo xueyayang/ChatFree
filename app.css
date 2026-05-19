@@ -30,9 +30,10 @@ body {
 
 /* ---- Header ---- */
 #header {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   padding: 8px 14px;
   background: #21252e;
   border-bottom: 1px solid #2d323c;
@@ -40,6 +41,8 @@ body {
 }
 
 #title {
+  position: absolute;
+  left: 14px;
   font-size: 16px;
   font-weight: 700;
   color: #f0f2f5;
@@ -142,6 +145,8 @@ body {
 }
 
 #debug-toggle {
+  position: absolute;
+  right: 14px;
   width: 36px;
   height: 28px;
   border: 1px solid #3a3f4b;
