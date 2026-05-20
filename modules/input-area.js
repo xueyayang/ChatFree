@@ -79,6 +79,12 @@ export function createInputAreaModule({ container, state, utils }) {
         if (historyPanel) historyPanel.toggle();
       }
     });
+
+    window.addEventListener('message', (e) => {
+      if (e.data?.type === 'chatfree-focus') {
+        inputEl?.focus();
+      }
+    });
   }
 
   function copyComposed() {

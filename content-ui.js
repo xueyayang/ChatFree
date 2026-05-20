@@ -179,6 +179,10 @@
     panelVisible = true;
     ball.classList.add('hidden');
     ballVisible = false;
+    // Auto-focus the textarea inside the iframe
+    setTimeout(() => {
+      iframe.contentWindow.postMessage({ type: 'chatfree-focus' }, '*');
+    }, 150);
   }
 
   function hidePanel() {
