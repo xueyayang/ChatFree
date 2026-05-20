@@ -9,7 +9,7 @@ import { createPresetPanel } from './preset-panel.js';
 import { createHistoryPanel } from './history-panel.js';
 
 export function createInputAreaModule({ container, state, utils }) {
-  let inputEl, sendBtn, copyBtn, presetPanel, historyPanel;
+  let inputEl, copyBtn, presetPanel, historyPanel;
   let copyFeedbackTimer = null;
 
   function init() {
@@ -48,7 +48,7 @@ export function createInputAreaModule({ container, state, utils }) {
               </svg>
             </button>
             <button id="copy-btn" title="Copy to clipboard">Copy</button>
-            <button id="send-btn" title="Copy to clipboard">Send</button>
+            <button id="debug-toggle" title="Toggle debug panel">DBG</button>
           </div>
         </div>
       </div>
@@ -56,16 +56,10 @@ export function createInputAreaModule({ container, state, utils }) {
     `;
 
     inputEl = document.getElementById('message-input');
-    sendBtn = document.getElementById('send-btn');
     copyBtn = document.getElementById('copy-btn');
 
     copyBtn.addEventListener('click', () => {
       copyComposed();
-    });
-
-    sendBtn.addEventListener('click', () => {
-      copyComposed();
-      recordToHistory();
     });
 
     inputEl.addEventListener('keydown', (e) => {
@@ -73,6 +67,7 @@ export function createInputAreaModule({ container, state, utils }) {
         e.preventDefault();
         copyComposed();
         recordToHistory();
+        collapseFloatingPanel();
       }
     });
 
@@ -131,15 +126,17 @@ export function createInputAreaModule({ container, state, utils }) {
     inputEl.value = '';
   }
 
+  function collapseFloatingPanel() {
+    window.parent.postMessage({ type: 'chatfree-collapse' }, '*');
+  }
+
   function setEnabled(enabled) {
     inputEl.disabled = !enabled;
-    sendBtn.disabled = !enabled;
     copyBtn.disabled = !enabled;
   }
 
   const dom = {
     get inputEl() { return inputEl; },
-    get sendBtn() { return sendBtn; },
     get copyBtn() { return copyBtn; }
   };
 

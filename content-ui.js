@@ -1,11 +1,10 @@
 // content-ui.js — Floating ChatFree panel injected into AI platform pages.
-// Collapses to a small tab at bottom center. Expands on hover. Pinnable.
+// Collapses to a small tab at bottom. Expands on hover. Pinnable.
 
 (function () {
   'use strict';
 
   const HANDLE_H = 30;
-  const PANEL_W = 480;
   const PANEL_H = 388;       // iframe height (panel minus handle)
   const TOTAL_H = HANDLE_H + PANEL_H;  // 418px
   const BOTTOM_HIDDEN = -PANEL_H;      // -388px (only handle visible)
@@ -39,9 +38,8 @@
     #chatfree-container {
       position: fixed;
       bottom: ${BOTTOM_HIDDEN}px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: ${PANEL_W}px;
+      left: 0;
+      width: 100%;
       height: ${TOTAL_H}px;
       z-index: 2147483646;
       display: flex;
@@ -55,10 +53,10 @@
     }
 
     #chatfree-handle {
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 8px;
       height: ${HANDLE_H}px;
       min-height: ${HANDLE_H}px;
       flex-shrink: 0;
@@ -78,6 +76,8 @@
     }
 
     #chatfree-pin-btn {
+      position: absolute;
+      right: 8px;
       width: 20px;
       height: 20px;
       padding: 0;
@@ -135,7 +135,6 @@
   });
 
   container.addEventListener('mouseleave', (e) => {
-    // Only collapse if mouse truly left the entire container
     if (!container.contains(e.relatedTarget)) {
       hovered = false;
       applyState();
@@ -175,6 +174,12 @@
     if (e.data && e.data.type === 'chatfree-pin') {
       pinned = e.data.pinned;
       pinBtn.classList.toggle('pinned', pinned);
+      applyState();
+    }
+    if (e.data && e.data.type === 'chatfree-collapse') {
+      pinned = false;
+      hovered = false;
+      pinBtn.classList.remove('pinned');
       applyState();
     }
   });

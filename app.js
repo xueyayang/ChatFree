@@ -33,11 +33,10 @@ function detectSite() {
 const $ = (sel) => document.querySelector(sel);
 
 // ---- DOM refs ----
-const siteIcons = document.querySelectorAll('.site-icon');
 const inputArea = $('#input-area');
-const debugToggle = $('#debug-toggle');
 const debugPanel = $('#debug-panel');
 const debugLog = $('#debug-log');
+let debugToggle = null;
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', () => {
@@ -51,128 +50,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const inputModule = createInputAreaModule({ container: inputArea, state, utils });
   inputModule.init();
 
-  // Site icon clicks — highlight selection
-  siteIcons.forEach(icon => {
-    icon.addEventListener('click', () => selectSite(icon.dataset.site));
-  });
-
-  // Site icon drag-to-reorder
-  initIconDragReorder();
-
   // Debug panel (hidden by default in floating mode)
   if (MODE_FLOATING) {
     debugPanel.classList.add('hidden');
   }
-  debugToggle.addEventListener('click', toggleDebugPanel);
+  const debugToggleEl = $('#debug-toggle');
+  if (debugToggleEl) {
+    debugToggle = debugToggleEl;
+    debugToggle.addEventListener('click', toggleDebugPanel);
+  }
   document.getElementById('debug-clear').addEventListener('click', clearDebugLog);
   document.getElementById('debug-copy').addEventListener('click', copyDebugLog);
 
-  // Initial selection
-  updateSiteIconStates();
-
   appendDebug('app', `Ready (${MODE_FLOATING ? 'floating' : 'popup'} mode, site=${state.activeSite})`);
 });
-
-// ---- Site selection ----
-function selectSite(site) {
-  state.activeSite = site;
-  updateSiteIconStates();
-  appendDebug('app', `Site selected: ${site}`);
-}
-
-function updateSiteIconStates() {
-  siteIcons.forEach(icon => {
-    icon.classList.toggle('active', icon.dataset.site === state.activeSite);
-  });
-}
-
-// ---- Icon drag reorder ----
-function initIconDragReorder() {
-  const container = document.getElementById('site-icons');
-  let dragSrc = null;
-
-  const saved = localStorage.getItem('iconOrder');
-  if (saved) {
-    try {
-      const order = JSON.parse(saved);
-      order.forEach(site => {
-        const icon = container.querySelector(`[data-site="${site}"]`);
-        if (icon) container.appendChild(icon);
-      });
-    } catch (_) { /* ignore */ }
-  }
-
-  container.addEventListener('dragstart', (e) => {
-    const icon = e.target.closest('.site-icon');
-    if (!icon) return;
-    dragSrc = icon;
-    icon.classList.add('dragging');
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', icon.dataset.site);
-  });
-
-  container.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-
-    container.querySelectorAll('.site-icon').forEach(el => {
-      el.classList.remove('drag-target-left', 'drag-target-right');
-    });
-
-    const icon = e.target.closest('.site-icon');
-    if (!icon || icon === dragSrc) return;
-
-    const rect = icon.getBoundingClientRect();
-    if (e.clientX < rect.left + rect.width / 2) {
-      icon.classList.add('drag-target-left');
-    } else {
-      icon.classList.add('drag-target-right');
-    }
-  });
-
-  container.addEventListener('dragleave', (e) => {
-    const icon = e.target.closest('.site-icon');
-    if (icon && !icon.contains(e.relatedTarget)) {
-      icon.classList.remove('drag-target-left', 'drag-target-right');
-    }
-  });
-
-  container.addEventListener('drop', (e) => {
-    e.preventDefault();
-    container.querySelectorAll('.site-icon').forEach(el => {
-      el.classList.remove('drag-target-left', 'drag-target-right');
-    });
-
-    const icon = e.target.closest('.site-icon');
-    if (!icon || !dragSrc || icon === dragSrc) return;
-
-    const rect = icon.getBoundingClientRect();
-    if (e.clientX < rect.left + rect.width / 2) {
-      container.insertBefore(dragSrc, icon);
-    } else {
-      container.insertBefore(dragSrc, icon.nextSibling);
-    }
-
-    saveIconOrder();
-  });
-
-  container.addEventListener('dragend', () => {
-    if (dragSrc) dragSrc.classList.remove('dragging');
-    container.querySelectorAll('.site-icon').forEach(el => {
-      el.classList.remove('drag-target-left', 'drag-target-right');
-    });
-    dragSrc = null;
-  });
-}
-
-function saveIconOrder() {
-  const container = document.getElementById('site-icons');
-  const order = [];
-  container.querySelectorAll('.site-icon').forEach(icon => {
-    order.push(icon.dataset.site);
-  });
-  localStorage.setItem('iconOrder', JSON.stringify(order));
-}
 
 // ---- Debug panel ----
 function toggleDebugPanel() {

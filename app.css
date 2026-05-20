@@ -32,11 +32,6 @@ html:has(body.floating-mode) {
   height: 100%;
 }
 
-body.floating-mode #header {
-  background: #1a1d23;
-  border-bottom-color: #2d323c;
-}
-
 body.floating-mode #input-area {
   background: #1a1d23;
 }
@@ -56,116 +51,34 @@ body.floating-mode #debug-panel {
   height: 100vh;
 }
 
-/* ---- Header ---- */
-#header {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 14px;
-  background: #21252e;
-  border-bottom: 1px solid #2d323c;
-  flex-shrink: 0;
-}
-
-#title {
-  position: absolute;
-  left: 14px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #f0f2f5;
-  letter-spacing: -0.3px;
-}
-
-#header-controls {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* ---- Site icon buttons ---- */
-#site-icons {
-  display: flex;
-  gap: 6px;
-}
-
-.site-icon {
-  width: 32px;
-  height: 32px;
-  padding: 3px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: #161b22;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.site-icon img {
-  width: 22px;
-  height: 22px;
-  filter: grayscale(100%);
-  opacity: 0.55;
-  transition: all 0.2s;
-}
-
-.site-icon:hover img {
-  filter: grayscale(40%);
-  opacity: 0.75;
-}
-
-.site-icon.active {
-  border-color: #00d4ff;
-  box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
-}
-
-.site-icon.active img {
-  filter: grayscale(0%);
-  opacity: 1;
-}
-
-/* ---- Site icon drag reorder ---- */
-.site-icon.dragging {
-  opacity: 0.35;
-}
-
-.site-icon.drag-target-left {
-  border-left: 2px solid #00d4ff;
-  margin-left: -2px;
-}
-
-.site-icon.drag-target-right {
-  border-right: 2px solid #00d4ff;
-  margin-right: -2px;
-}
-
-/* ---- DBG toggle ---- */
+/* ---- DBG toggle (in input area) ---- */
 #debug-toggle {
   position: absolute;
-  right: 14px;
-  width: 36px;
-  height: 28px;
-  border: 1px solid #3a3f4b;
-  border-radius: 6px;
-  background: #161b22;
-  color: #99a1b3;
+  right: 4px;
+  bottom: 4px;
+  width: 44px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: #2d5a3d;
+  color: #7ee787;
   font-family: inherit;
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background 0.2s, opacity 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #debug-toggle:hover {
-  border-color: #539bf5;
-  color: #e1e5eb;
+  background: #36854d;
 }
 
 #debug-toggle.active {
   background: #2d5a3d;
-  border-color: #36854d;
+  border: 1px solid #36854d;
   color: #7ee787;
 }
 
@@ -792,37 +705,6 @@ body.floating-mode #debug-panel {
 
 #copy-btn:disabled {
   opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* -- Send button -- */
-#send-btn {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 44px;
-  height: 32px;
-  border: none;
-  border-radius: 8px;
-  background: #2d5a3d;
-  color: #7ee787;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s, opacity 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-#send-btn:hover:not(:disabled) {
-  background: #36854d;
-}
-
-#send-btn:disabled {
-  background: #21262d;
-  color: #3a3f4b;
   cursor: not-allowed;
 }
 
