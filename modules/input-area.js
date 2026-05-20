@@ -60,6 +60,8 @@ export function createInputAreaModule({ container, state, utils }) {
 
     copyBtn.addEventListener('click', () => {
       copyComposed();
+      recordToHistory();
+      collapseFloatingPanel();
     });
 
     inputEl.addEventListener('keydown', (e) => {

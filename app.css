@@ -45,6 +45,10 @@ body.floating-mode #debug-panel {
   max-height: 160px;
 }
 
+body.floating-mode #message-input {
+  height: 100%;
+}
+
 #app {
   display: flex;
   flex-direction: column;
