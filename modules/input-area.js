@@ -7,12 +7,16 @@
 
 import { createPresetPanel } from './preset-panel.js';
 import { createHistoryPanel } from './history-panel.js';
+import { createServerClient } from './server-client.js';
 
 export function createInputAreaModule({ container, state, utils }) {
-  let inputEl, copyBtn, presetPanel, historyPanel;
+  let inputEl, copyBtn, presetPanel, historyPanel, serverClient;
   let copyFeedbackTimer = null;
 
   function init() {
+    serverClient = createServerClient();
+    serverClient.checkHealth(); // fire-and-forget pre-check
+
     buildUI();
     presetPanel = createPresetPanel({ container: document.getElementById('preset-panel') });
 
@@ -61,7 +65,6 @@ export function createInputAreaModule({ container, state, utils }) {
     copyBtn.addEventListener('click', () => {
       copyComposed();
       recordToHistory();
-      collapseFloatingPanel();
     });
 
     inputEl.addEventListener('keydown', (e) => {
@@ -69,7 +72,6 @@ export function createInputAreaModule({ container, state, utils }) {
         e.preventDefault();
         copyComposed();
         recordToHistory();
-        collapseFloatingPanel();
       }
     });
 
@@ -96,11 +98,23 @@ export function createInputAreaModule({ container, state, utils }) {
       if (utils.appendDebug) {
         utils.appendDebug('app', `Copied ${text.length} chars to clipboard`);
       }
+      collapseFloatingPanel();
+      triggerPasteAndSend();
     }).catch(() => {
       if (utils.appendDebug) {
         utils.appendDebug('app', 'Clipboard write failed', 'err');
       }
     });
+  }
+
+  async function triggerPasteAndSend() {
+    if (!serverClient.isAvailable()) return; // silent fallback
+    window.parent.postMessage({ type: 'chatfree-focus-input' }, '*');
+    await new Promise(r => setTimeout(r, 350));
+    const result = await serverClient.pasteAndSubmit();
+    if (!result.ok && utils.appendDebug) {
+      utils.appendDebug('app', `Paste failed: ${result.error}`, 'err');
+    }
   }
 
   function showCopyFeedback() {

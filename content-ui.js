@@ -193,6 +193,41 @@
     ballVisible = true;
   }
 
+  // ---- Focus the AI platform's chat input ----
+  function focusPageInput() {
+    // Try to find the chat input on the page using common selectors
+    const selectors = [
+      'textarea[placeholder*="消息" i]',
+      'textarea[placeholder*="问题" i]',
+      'textarea[placeholder*="message" i]',
+      'textarea[placeholder*="Send" i]',
+      'textarea[placeholder*="input" i]',
+      '#chat-input',
+      '[role="textbox"][contenteditable="true"]',
+      'div[contenteditable="true"]',
+      'textarea',
+    ];
+
+    for (const sel of selectors) {
+      try {
+        const el = document.querySelector(sel);
+        if (el && isVisible(el)) {
+          el.focus();
+          return;
+        }
+      } catch { /* invalid selector, skip */ }
+    }
+  }
+
+  function isVisible(el) {
+    const style = window.getComputedStyle(el);
+    return style.display !== 'none' &&
+           style.visibility !== 'hidden' &&
+           style.opacity !== '0' &&
+           el.offsetWidth > 0 &&
+           el.offsetHeight > 0;
+  }
+
   // ---- Drag handlers ----
   function onHandleMouseDown(e) {
     if (e.button !== 0) return;
@@ -239,6 +274,9 @@
   window.addEventListener('message', (e) => {
     if (e.data && e.data.type === 'chatfree-collapse') {
       hidePanel();
+    }
+    if (e.data && e.data.type === 'chatfree-focus-input') {
+      focusPageInput();
     }
   });
 
