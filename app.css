@@ -42,7 +42,8 @@ body.floating-mode #preset-panel {
 
 body.floating-mode #debug-panel {
   background: #161b22;
-  max-height: 160px;
+  height: 180px;
+  max-height: none;
 }
 
 body.floating-mode #message-input {
@@ -896,10 +897,25 @@ body.floating-mode #message-input {
   border-top: 1px solid #2d323c;
   overflow: hidden;
   max-height: 200px;
+  height: 200px;
 }
 
 #debug-panel.hidden {
   display: none;
+}
+
+/* -- Debug resize handle (top edge) -- */
+#debug-resize {
+  flex-shrink: 0;
+  height: 5px;
+  cursor: ns-resize;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+#debug-resize:hover,
+#debug-panel.resizing #debug-resize {
+  background: #06b6d4;
 }
 
 #debug-header {
@@ -956,6 +972,47 @@ body.floating-mode #message-input {
 #debug-clear:hover {
   border-color: #e5534b;
   color: #e5534b;
+}
+
+/* -- Debug toolbar (test buttons) -- */
+#debug-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 4px 8px;
+  border-bottom: 1px solid #2d323c;
+  flex-shrink: 0;
+}
+
+.dbt-btn {
+  padding: 2px 8px;
+  border: 1px solid #3a3f4b;
+  border-radius: 4px;
+  background: #21252e;
+  color: #99a1b3;
+  font-family: inherit;
+  font-size: 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.dbt-btn:hover {
+  border-color: #539bf5;
+  color: #e1e5eb;
+  background: #1c2a3e;
+}
+
+.dbt-btn:active {
+  background: #2d5a3d;
+  border-color: #36854d;
+  color: #7ee787;
+}
+
+.dbt-btn.testing {
+  border-color: #e5a853;
+  color: #e5a853;
+  pointer-events: none;
 }
 
 #debug-log {
@@ -1021,6 +1078,11 @@ body.floating-mode #message-input {
 .debug-source.app {
   background: #3a2d4a;
   color: #b392f0;
+}
+
+.debug-source.test {
+  background: #3a3520;
+  color: #e5a853;
 }
 
 .debug-msg {

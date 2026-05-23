@@ -5,7 +5,9 @@
 (function () {
   'use strict';
 
-  const PANEL_H = 160;  // ~6 lines of text
+  const PANEL_H = 400;        // ~15 lines of text
+  const PANEL_MIN_H = 120;    // min height
+  let panelH = PANEL_H;       // current height (may change via resize)
 
   // ---- Only inject once ----
   if (document.getElementById('chatfree-container')) return;
@@ -33,6 +35,11 @@
   iframe.src = chrome.runtime.getURL('index.html?mode=floating');
   iframe.setAttribute('allow', 'clipboard-write');
   container.appendChild(iframe);
+
+  // Resize handle (bottom edge)
+  const resizeHandle = document.createElement('div');
+  resizeHandle.id = 'chatfree-resize';
+  container.appendChild(resizeHandle);
 
   document.body.appendChild(ball);
   document.body.appendChild(container);
@@ -82,7 +89,7 @@
       left: 0;
       right: 0;
       width: 100%;
-      height: ${PANEL_H}px;
+      height: ${panelH}px;
       z-index: 2147483646;
       border-radius: 12px;
       box-shadow: 0 8px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06);
@@ -141,6 +148,20 @@
       border: none;
       background: #1a1d23;
     }
+
+    /* -- Resize handle -- */
+    #chatfree-resize {
+      flex-shrink: 0;
+      height: 4px;
+      cursor: ns-resize;
+      background: transparent;
+      transition: background 0.15s;
+    }
+
+    #chatfree-resize:hover,
+    #chatfree-container.resizing #chatfree-resize {
+      background: #06b6d4;
+    }
   `;
   document.head.appendChild(style);
 
@@ -155,18 +176,27 @@
   let dragStartY = 0;
   let dragStartTop = 0;
 
+  // ---- Resize state ----
+  let resizing = false;
+  let resizeStartY = 0;
+  let resizeStartH = 0;
+
   // ---- Position panel ----
   function centerPanel() {
-    panelY = Math.max(0, (window.innerHeight - PANEL_H) / 2);
+    panelY = Math.max(0, (window.innerHeight - panelH) / 2);
     applyPosition();
   }
 
   function applyPosition() {
     container.style.top = panelY + 'px';
+    container.style.height = panelH + 'px';
   }
 
   function clampPosition() {
-    panelY = Math.max(0, Math.min(panelY, window.innerHeight - PANEL_H));
+    const maxH = window.innerHeight - 40;
+    if (panelH < PANEL_MIN_H) panelH = PANEL_MIN_H;
+    if (panelH > maxH) panelH = maxH;
+    panelY = Math.max(0, Math.min(panelY, window.innerHeight - panelH));
   }
 
   // ---- Show / Hide ----
@@ -238,26 +268,48 @@
     container.classList.add('dragging');
   }
 
+  function onResizeMouseDown(e) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    resizing = true;
+    resizeStartY = e.clientY;
+    resizeStartH = panelH;
+    container.classList.add('resizing');
+  }
+
   function onMouseMove(e) {
-    if (!dragging) return;
-    const dy = e.clientY - dragStartY;
-    panelY = dragStartTop + dy;
-    clampPosition();
-    applyPosition();
-    if (Math.abs(dy) > 3) {
-      hasBeenDragged = true;
+    if (dragging) {
+      const dy = e.clientY - dragStartY;
+      panelY = dragStartTop + dy;
+      clampPosition();
+      applyPosition();
+      if (Math.abs(dy) > 3) {
+        hasBeenDragged = true;
+      }
+    } else if (resizing) {
+      const dy = e.clientY - resizeStartY;
+      panelH = resizeStartH + dy;
+      clampPosition();
+      applyPosition();
     }
   }
 
   function onMouseUp() {
-    if (!dragging) return;
-    dragging = false;
-    container.classList.remove('dragging');
+    if (dragging) {
+      dragging = false;
+      container.classList.remove('dragging');
+    }
+    if (resizing) {
+      resizing = false;
+      container.classList.remove('resizing');
+    }
   }
 
   // ---- Events ----
   ball.addEventListener('click', showPanel);
   handle.addEventListener('mousedown', onHandleMouseDown);
+  resizeHandle.addEventListener('mousedown', onResizeMouseDown);
   document.addEventListener('mousemove', onMouseMove);
   document.addEventListener('mouseup', onMouseUp);
 

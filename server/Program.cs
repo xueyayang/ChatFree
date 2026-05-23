@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using InputServer;
 
@@ -11,17 +12,40 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 
 var app = builder.Build();
 
+// CORS — required for extension pages/service worker to reach localhost
+app.Use(async (ctx, next) => {
+    ctx.Response.Headers["Access-Control-Allow-Origin"] = "*";
+    ctx.Response.Headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS";
+    ctx.Response.Headers["Access-Control-Allow-Headers"] = "Content-Type";
+    if (ctx.Request.Method == "OPTIONS")
+    {
+        ctx.Response.StatusCode = 204;
+        return;
+    }
+    await next();
+});
+
 app.MapGet("/health", () =>
 {
-    return new ExecuteResponse(true) { Version = "0.1.0" };
+    LogSep();
+    Console.WriteLine("GET /health");
+    var resp = new ExecuteResponse(true) { Version = "0.1.0" };
+    Console.WriteLine("  → 200 ok");
+    return resp;
 });
 
 app.MapPost("/execute", async (HttpContext ctx) =>
 {
+    var sw = Stopwatch.StartNew();
+    LogSep();
+
     var req = await JsonSerializer.DeserializeAsync(
         ctx.Request.Body,
         AppJsonContext.Default.ExecuteRequest,
         ctx.RequestAborted);
+
+    var count = req?.Actions?.Length ?? 0;
+    Console.WriteLine($"POST /execute | {count} actions");
 
     if (req == null || req.Actions == null || req.Actions.Length == 0)
     {
@@ -32,6 +56,7 @@ app.MapPost("/execute", async (HttpContext ctx) =>
             new ExecuteResponse(false, "Missing or empty actions array"),
             AppJsonContext.Default.ExecuteResponse,
             ctx.RequestAborted);
+        Console.WriteLine("  → 400 Missing or empty actions array");
         return;
     }
 
@@ -42,7 +67,16 @@ app.MapPost("/execute", async (HttpContext ctx) =>
         result,
         AppJsonContext.Default.ExecuteResponse,
         ctx.RequestAborted);
+
+    sw.Stop();
+    var status = result.Ok ? "200 ok" : $"200 error: {result.Error}";
+    Console.WriteLine($"  → {status} ({sw.ElapsedMilliseconds}ms)");
 });
 
-Console.WriteLine("Input Server listening on http://127.0.0.1:12306");
+static void LogSep()
+{
+    Console.WriteLine($"══════ {DateTime.Now:HH:mm:ss.fff} ══════");
+}
+
+Console.WriteLine("══════ Input Server listening on http://127.0.0.1:12306 ══════");
 app.Run();

@@ -11,12 +11,22 @@
     <section id="input-area"></section>
 
     <aside id="debug-panel" class="hidden">
+      <div id="debug-resize" title="Drag to resize"></div>
       <div id="debug-header">
         <span id="debug-title">Debug Log</span>
         <div id="debug-header-actions">
           <button id="debug-copy" title="Copy log">Copy</button>
           <button id="debug-clear" title="Clear log">Clear</button>
         </div>
+      </div>
+      <div id="debug-toolbar">
+        <button class="dbt-btn" data-test="health" title="GET /health">Health</button>
+        <button class="dbt-btn" data-test="wait" title="wait 500ms">Wait</button>
+        <button class="dbt-btn" data-test="type" title="type 'Hello'">Type</button>
+        <button class="dbt-btn" data-test="paste" title="Ctrl+V">Paste</button>
+        <button class="dbt-btn" data-test="full" title="pasteAndSubmit">Full</button>
+        <button class="dbt-btn" data-test="focus" title="focusPageInput">Focus</button>
+        <button class="dbt-btn" data-test="collapse" title="collapse panel">Close</button>
       </div>
       <div id="debug-log"></div>
     </aside>

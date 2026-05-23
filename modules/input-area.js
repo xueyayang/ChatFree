@@ -162,5 +162,5 @@ export function createInputAreaModule({ container, state, utils }) {
     get copyBtn() { return copyBtn; }
   };
 
-  return { init, getComposedText, clear, setEnabled, dom };
+  return { init, getComposedText, clear, setEnabled, dom, serverClient: () => serverClient };
 }
